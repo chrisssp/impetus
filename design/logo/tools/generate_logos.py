@@ -11,6 +11,12 @@ WORD = 'Impetus'
 BASE = str(Path(__file__).resolve().parent.parent)
 WEIGHT = 600
 
+# Escala aprobada del isotipo dentro de su lienzo 512x512 (1.35 desde 2026-08-15).
+# Ajustes experimentales: ISO_SCALE=<valor> ISO_ONLY=<theme/variant> para re-iterar una
+# sola variante sin tocar el resto; una vez aprobado, se deja fijo aquí.
+ISO_SCALE = float(os.environ.get('ISO_SCALE', '1.35'))
+ISO_ONLY = os.environ.get('ISO_ONLY', '')
+
 font = instantiateVariableFont(TTFont(FONT), {'wght': WEIGHT})
 gs = font.getGlyphSet()
 cmap = font.getBestCmap()
@@ -73,14 +79,53 @@ def write(path, content):
         f.write(content)
     print('wrote', path)
 
+def rasterize(src_svg, dst_png, size):
+    os.makedirs(os.path.dirname(dst_png), exist_ok=True)
+    cairosvg.svg2png(url=src_svg, write_to=dst_png,
+                     output_width=size, output_height=size)
+    print('wrote', dst_png)
+
 # ---- 1) Variantes de isotipo (solo simbolo) ----
 # dark = nuevo original (con fondo); carpetas color/ y monochrome/, prefijos eliminados
 for theme in ('color', 'monochrome'):
     for variant, with_bg in (('dark', True), ('dark-transparent', False),
                              ('light', True), ('light-transparent', False)):
         iso_key = ('dark' if theme == 'color' else 'monochrome-dark') if variant.startswith('dark') else ('light' if theme == 'color' else 'monochrome-light')
+        if ISO_ONLY and f'{theme}/{variant}' != ISO_ONLY:
+            continue
+        body = iso_body(ISO[iso_key], with_bg)
+        if ISO_SCALE != 1.0:
+            body = (f'<g transform="translate(256,256) scale({ISO_SCALE}) translate(-256,-256)">\n'
+                    f'{body}\n</g>')
         write(f'{BASE}/isotipo/{theme}/{variant}.svg',
-              f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">\n{DEFS}\n{iso_body(ISO[iso_key], with_bg)}\n</svg>\n')
+              f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">\n{DEFS}\n{body}\n</svg>\n')
+
+# ---- 1b) Rasterizacion del isotipo para la app (Flutter) ----
+# Los PNGs de launcher/splash/web son downscales de los SVGs del isotipo:
+#   - isotipo/color/dark.svg          -> iconos con fondo #1e1e2e (launcher, web, favicon)
+#   - isotipo/color/dark-transparent.svg -> launch_image (transparente, sobre el fondo del splash)
+# Requiere cairosvg (pip install cairosvg). Si falta, avisa y sigue.
+REPO = Path(BASE).parent.parent  # .../impetus
+APP_PNGS = [
+    # (svg fuente relativo a design/logo, png destino relativo al repo, px)
+    ('isotipo/color/dark.svg',              'android/app/src/main/res/mipmap-mdpi/ic_launcher.png', 48),
+    ('isotipo/color/dark.svg',              'android/app/src/main/res/mipmap-hdpi/ic_launcher.png', 72),
+    ('isotipo/color/dark.svg',              'android/app/src/main/res/mipmap-xhdpi/ic_launcher.png', 96),
+    ('isotipo/color/dark.svg',              'android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png', 144),
+    ('isotipo/color/dark.svg',              'android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png', 192),
+    ('isotipo/color/dark-transparent.svg',  'android/app/src/main/res/drawable/launch_image.png', 192),
+    ('isotipo/color/dark.svg',              'web/favicon.png', 16),
+    ('isotipo/color/dark.svg',              'web/icons/Icon-192.png', 192),
+    ('isotipo/color/dark.svg',              'web/icons/Icon-512.png', 512),
+    ('isotipo/color/dark.svg',              'web/icons/Icon-maskable-192.png', 192),
+    ('isotipo/color/dark.svg',              'web/icons/Icon-maskable-512.png', 512),
+]
+try:
+    import cairosvg
+    for src, dst, size in APP_PNGS:
+        rasterize(f'{BASE}/{src}', f'{REPO}/{dst}', size)
+except ImportError:
+    print('SKIP PNGs de la app: falta cairosvg (pip install cairosvg)')
 
 # banner 1500x500 con dark (color) escalado
 scale_b = 0.88

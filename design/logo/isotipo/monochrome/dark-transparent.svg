@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 <defs><clipPath id="sun-clip"><circle cx="256" cy="256" r="120"/></clipPath><clipPath id="halo-clip"><circle cx="256" cy="256" r="138"/></clipPath></defs>
+<g transform="translate(256,256) scale(1.35) translate(-256,-256)">
 <circle cx="256" cy="256" r="138" fill="#2d2d3f"/>
 <g clip-path="url(#halo-clip)"><rect x="0" y="118" width="512" height="138" fill="#3a3a4e"/></g>
 <g clip-path="url(#sun-clip)">
@@ -10,4 +11,5 @@
 <path d="M116 238 Q256 302 388 238" fill="none" stroke="#9a9aae" stroke-width="32"/>
 <path d="M369 216 L396 228 L387 256 Z" fill="#6b6b7c" stroke="#6b6b7c" stroke-width="8" stroke-linejoin="round" transform="translate(2,3)"/>
 <path d="M369 216 L396 228 L387 256 Z" fill="#9a9aae" stroke="#9a9aae" stroke-width="8" stroke-linejoin="round"/>
+</g>
 </svg>
