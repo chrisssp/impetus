@@ -13,22 +13,24 @@ void main() {
   });
 
   group('WallpaperBridge.setBitmap', () {
-    test('invokes setBitmap with the PNG bytes on the wallpaper channel',
-        () async {
-      final calls = <MethodCall>[];
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (call) async {
-        calls.add(call);
-        return true;
-      });
+    test(
+      'invokes setBitmap with the PNG bytes on the wallpaper channel',
+      () async {
+        final calls = <MethodCall>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (call) async {
+              calls.add(call);
+              return true;
+            });
 
-      final result = await WallpaperBridge.setBitmap(kSpikePngBytes);
+        final result = await WallpaperBridge.setBitmap(kSpikePngBytes);
 
-      expect(result, isTrue);
-      expect(calls, hasLength(1));
-      expect(calls.single.method, 'setBitmap');
-      expect(calls.single.arguments, orderedEquals(kSpikePngBytes));
-    });
+        expect(result, isTrue);
+        expect(calls, hasLength(1));
+        expect(calls.single.method, 'setBitmap');
+        expect(calls.single.arguments, orderedEquals(kSpikePngBytes));
+      },
+    );
 
     test('returns false when the platform returns null', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -47,11 +49,11 @@ void main() {
     test('propagates PlatformException with code INVALID_ARGUMENT', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (_) async {
-        throw PlatformException(
-          code: 'INVALID_ARGUMENT',
-          message: 'PNG bytes must not be null',
-        );
-      });
+            throw PlatformException(
+              code: 'INVALID_ARGUMENT',
+              message: 'PNG bytes must not be null',
+            );
+          });
 
       await expectLater(
         WallpaperBridge.setBitmap(kSpikePngBytes),
@@ -70,11 +72,11 @@ void main() {
     test('propagates PlatformException with code INVALID_BITMAP', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (_) async {
-        throw PlatformException(
-          code: 'INVALID_BITMAP',
-          message: 'Failed to decode bitmap from provided bytes',
-        );
-      });
+            throw PlatformException(
+              code: 'INVALID_BITMAP',
+              message: 'Failed to decode bitmap from provided bytes',
+            );
+          });
 
       await expectLater(
         WallpaperBridge.setBitmap(kSpikePngBytes),
@@ -93,11 +95,11 @@ void main() {
     test('propagates PlatformException with code SET_BITMAP_FAILED', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (_) async {
-        throw PlatformException(
-          code: 'SET_BITMAP_FAILED',
-          message: 'WallpaperManager threw',
-        );
-      });
+            throw PlatformException(
+              code: 'SET_BITMAP_FAILED',
+              message: 'WallpaperManager threw',
+            );
+          });
 
       await expectLater(
         WallpaperBridge.setBitmap(kSpikePngBytes),

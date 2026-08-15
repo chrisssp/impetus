@@ -27,18 +27,22 @@ void main() {
     expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 
-  testWidgets('tapping the spike FAB sends the test PNG and reports success',
-      (tester) async {
+  testWidgets('tapping the spike FAB sends the test PNG and reports success', (
+    tester,
+  ) async {
     final calls = <MethodCall>[];
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
-      calls.add(call);
-      return true;
-    });
+          calls.add(call);
+          return true;
+        });
 
     await tester.pumpWidget(const ProviderScope(child: MainApp()));
-    expect(containerOf(tester).read(spikeStateProvider), 0,
-        reason: 'spike starts idle');
+    expect(
+      containerOf(tester).read(spikeStateProvider),
+      0,
+      reason: 'spike starts idle',
+    );
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
@@ -46,13 +50,17 @@ void main() {
     expect(calls, hasLength(1));
     expect(calls.single.method, 'setBitmap');
     expect(calls.single.arguments, orderedEquals(kSpikePngBytes));
-    expect(containerOf(tester).read(spikeStateProvider), 2,
-        reason: 'spike transitions to success');
+    expect(
+      containerOf(tester).read(spikeStateProvider),
+      2,
+      reason: 'spike transitions to success',
+    );
     expect(find.text('Wallpaper set successfully'), findsOneWidget);
   });
 
-  testWidgets('spike shows loading state while the platform call is pending',
-      (tester) async {
+  testWidgets('spike shows loading state while the platform call is pending', (
+    tester,
+  ) async {
     final gate = Completer<bool>();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (_) => gate.future);
@@ -61,43 +69,54 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pump();
 
-    expect(containerOf(tester).read(spikeStateProvider), 1,
-        reason: 'spike shows loading while pending');
+    expect(
+      containerOf(tester).read(spikeStateProvider),
+      1,
+      reason: 'spike shows loading while pending',
+    );
 
     gate.complete(true);
     await tester.pumpAndSettle();
-    expect(containerOf(tester).read(spikeStateProvider), 2,
-        reason: 'spike reaches success after the platform call completes');
+    expect(
+      containerOf(tester).read(spikeStateProvider),
+      2,
+      reason: 'spike reaches success after the platform call completes',
+    );
   });
 
-  testWidgets('spike reports error state and SnackBar when platform fails',
-      (tester) async {
+  testWidgets('spike reports error state and SnackBar when platform fails', (
+    tester,
+  ) async {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (_) async {
-      throw PlatformException(
-        code: 'SET_BITMAP_FAILED',
-        message: 'WallpaperManager threw',
-      );
-    });
+          throw PlatformException(
+            code: 'SET_BITMAP_FAILED',
+            message: 'WallpaperManager threw',
+          );
+        });
 
     await tester.pumpWidget(const ProviderScope(child: MainApp()));
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
 
-    expect(containerOf(tester).read(spikeStateProvider), 3,
-        reason: 'spike transitions to error');
+    expect(
+      containerOf(tester).read(spikeStateProvider),
+      3,
+      reason: 'spike transitions to error',
+    );
     expect(find.textContaining('Spike failed'), findsOneWidget);
     expect(find.textContaining('SET_BITMAP_FAILED'), findsOneWidget);
   });
 
-  testWidgets('spike trigger is one-shot: second tap does not re-invoke',
-      (tester) async {
+  testWidgets('spike trigger is one-shot: second tap does not re-invoke', (
+    tester,
+  ) async {
     var callCount = 0;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (_) async {
-      callCount++;
-      return true;
-    });
+          callCount++;
+          return true;
+        });
 
     await tester.pumpWidget(const ProviderScope(child: MainApp()));
     await tester.tap(find.byType(FloatingActionButton));

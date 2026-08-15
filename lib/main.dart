@@ -25,9 +25,7 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: HomeShell(),
-    );
+    return const MaterialApp(home: HomeShell());
   }
 }
 
@@ -65,8 +63,6 @@ Future<void> _runSpike(WidgetRef ref, BuildContext context) async {
     );
   } on PlatformException catch (e) {
     ref.read(spikeStateProvider.notifier).state = 3;
-    messenger.showSnackBar(
-      SnackBar(content: Text('Spike failed: ${e.code}')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text('Spike failed: ${e.code}')));
   }
 }

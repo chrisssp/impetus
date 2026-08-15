@@ -26,16 +26,12 @@ final kSpikePngBytes = Uint8List.fromList(<int>[
 /// The channel is static so tests can intercept it with
 /// `setMockMethodCallHandler` before calling [setBitmap].
 class WallpaperBridge {
-  static const _channel =
-      MethodChannel('com.impetus.impetus/wallpaper');
+  static const _channel = MethodChannel('com.impetus.impetus/wallpaper');
 
   /// Sends [pngBytes] to the platform and applies them as lock-screen and
   /// system wallpaper. Returns `false` when the platform reports no result.
   static Future<bool> setBitmap(Uint8List pngBytes) async {
-    final result = await _channel.invokeMethod<bool>(
-      'setBitmap',
-      pngBytes,
-    );
+    final result = await _channel.invokeMethod<bool>('setBitmap', pngBytes);
     return result ?? false;
   }
 }
