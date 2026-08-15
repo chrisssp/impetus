@@ -31,11 +31,35 @@ android {
         versionName = flutter.versionName
     }
 
+    // Release signing reads credentials from the environment so keystore
+    // material is never committed. CI decodes KEYSTORE_BASE64 into
+    // /tmp/keystore.jks and exports the four env vars; local builds without
+    // secrets fall back to debug signing.
+    signingConfigs {
+        create("release") {
+            val env = System.getenv()
+            // storeFile stays null (and the config unused) when the env
+            // vars are absent, so local builds fall back to debug signing.
+            storeFile = env["KEYSTORE_PATH"]?.let { file(it) }
+            storePassword = env["KEYSTORE_PASSWORD"]
+            keyAlias = env["KEY_ALIAS"]
+            keyPassword = env["KEY_PASSWORD"]
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            val env = System.getenv()
+            val hasSigningEnv = env["KEYSTORE_PATH"] != null &&
+                env["KEYSTORE_PASSWORD"] != null &&
+                env["KEY_ALIAS"] != null &&
+                env["KEY_PASSWORD"] != null
+            signingConfig = if (hasSigningEnv) {
+                signingConfigs.getByName("release")
+            } else {
+                // Local builds without secrets still work via debug keys.
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
