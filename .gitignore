@@ -50,5 +50,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Keystore / signing material (never commit)
+*.jks
+*.keystore
+
 # Widget Preview related
 .widget_preview/
