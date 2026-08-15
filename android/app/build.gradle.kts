@@ -19,6 +19,8 @@ android {
         applicationId = "com.impetus.impetus"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
+        // Explicit floor required by workmanager (>= 21); Flutter's default is
+        // already 21, but pinning makes the contract explicit.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
