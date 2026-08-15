@@ -1,0 +1,49 @@
+name: Feature request
+description: Suggest an idea for Impetus
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea. Focus on the **problem** you're trying to
+        solve, not just the solution — the why matters more than the what.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What's the problem or need this feature addresses?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How could Impetus solve it? Be concrete but flexible.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or alternative designs you've thought about.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      description: Where does this feature live?
+      options:
+        - Wallpaper rendering (engine)
+        - Quote library / content
+        - Configurator UI
+        - Motivational experience (heart)
+        - Auto-change scheduling
+        - Other / not sure
+      default: 5
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues for this feature.
+          required: true

@@ -1,0 +1,61 @@
+name: Bug report
+description: Report something that isn't working as expected
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in the details
+        below — the more specific, the faster we can fix it.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps to trigger the bug.
+      placeholder: |
+        1. Open Impetus
+        2. Tap on ...
+        3. See the error
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: Device
+      description: What kind of device did you test on?
+      options:
+        - Real Android device
+        - Android emulator
+        - Web (Chrome/Brave)
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: device-model
+    attributes:
+      label: Device model
+      description: e.g. Xiaomi 2303ERA42L
+  - type: input
+    id: android-version
+    attributes:
+      label: Android version
+      description: e.g. Android 15 (API 35)
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      description: Find it in the issue from `flutter build` or the release tag.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste any relevant logs, error messages, or attach screenshots.
+      render: shell
