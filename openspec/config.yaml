@@ -1,0 +1,50 @@
+schema: spec-driven
+
+context: |
+  Project: impetus — Flutter lock-screen motivational wallpaper app (MVP).
+  Tech stack: Flutter 3.47.0 / Dart SDK ^3.13.0 (stable channel).
+  Architecture: default Flutter single-package app (lib/), Material 3.
+  State management: none yet (plain StatefulWidget / setState; MVP scope).
+  Testing: flutter_test (unit + widget), flutter_lints ^6.0.0 via analysis_options.yaml.
+  Style: dart format (default flutter style), flutter_lints strict set.
+  Platforms: android, web, linux scaffolded.
+
+rules:
+  proposal:
+    - State intent, scope, and approach; define MVP boundary.
+    - Note impact on existing tests and platform scaffolding.
+  specs:
+    - Use Given/When/Then for scenarios.
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+  design:
+    - Prefer Flutter idioms: widgets, immutable state, explicit State management choice.
+    - Document any architecture decisions with rationale.
+  tasks:
+    - Group by phase, use hierarchical numbering.
+    - Keep tasks completable in one session.
+  apply:
+    guidelines:
+      - Follow existing lib/ patterns and Dart effective style.
+    tdd: true
+    test_command: "flutter test"
+  verify:
+    test_command: "flutter test"
+    build_command: "flutter build apk --debug"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas.
+
+testing:
+  strict_tdd: true
+  runner: flutter test
+  layers:
+    unit: "flutter test"
+    integration: ""
+    e2e: ""
+  coverage:
+    available: false
+    command: ""
+  quality:
+    linter: flutter analyze
+    formatter: dart format
+    type_checker: flutter analyze
