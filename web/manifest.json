@@ -1,11 +1,11 @@
 {
-    "name": "impetus",
-    "short_name": "impetus",
+    "name": "Impetus",
+    "short_name": "Impetus",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1e1e2e",
+    "theme_color": "#1e1e2e",
+    "description": "Your lock screen, pushing you forward every day.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
