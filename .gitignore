@@ -1,3 +1,9 @@
+# Agent tooling (local to each machine)
+.agents/
+.atl/
+.codegraph/
+skills-lock.json
+
 # Miscellaneous
 *.class
 *.log
