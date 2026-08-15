@@ -1,16 +1,15 @@
-// This is a basic Flutter widget test.
+// Basic Flutter widget test for the app shell.
 //
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// MainApp requires a ProviderScope ancestor because its home shell is a
+// ConsumerWidget that reads Riverpod providers.
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:impetus/main.dart';
 
 void main() {
   testWidgets('renders the app title', (WidgetTester tester) async {
-    await tester.pumpWidget(const MainApp());
+    await tester.pumpWidget(const ProviderScope(child: MainApp()));
 
     expect(find.text('Impetus'), findsOneWidget);
   });
