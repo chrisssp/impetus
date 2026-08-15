@@ -54,5 +54,8 @@ app.*.map.json
 *.jks
 *.keystore
 
+# Kotlin Gradle daemon session state
+android/.kotlin/
+
 # Widget Preview related
 .widget_preview/
