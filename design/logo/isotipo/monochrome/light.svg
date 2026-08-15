@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><clipPath id="sun-clip"><circle cx="256" cy="256" r="120"/></clipPath><clipPath id="halo-clip"><circle cx="256" cy="256" r="138"/></clipPath></defs>
+<rect width="512" height="512" fill="#f5f5f5"/>
+<circle cx="256" cy="256" r="138" fill="#e8e8e8"/>
+<g clip-path="url(#halo-clip)"><rect x="0" y="118" width="512" height="138" fill="#f2f2f4"/></g>
+<g clip-path="url(#sun-clip)">
+<circle cx="256" cy="256" r="120" fill="#1e1e2e"/>
+<path d="M136 312 Q 176 304 216 312 T 296 312 T 376 312 L 376 376 L 136 376 Z" fill="#15151f"/>
+<path d="M116 244 Q256 312 388 244" fill="none" stroke="#6b6b7c" stroke-width="32"/>
+</g>
+<path d="M116 238 Q256 302 388 238" fill="none" stroke="#9a9aae" stroke-width="32"/>
+<path d="M369 216 L396 228 L387 256 Z" fill="#6b6b7c" stroke="#6b6b7c" stroke-width="8" stroke-linejoin="round" transform="translate(2,3)"/>
+<path d="M369 216 L396 228 L387 256 Z" fill="#9a9aae" stroke="#9a9aae" stroke-width="8" stroke-linejoin="round"/>
+</svg>
