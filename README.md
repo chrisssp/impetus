@@ -57,16 +57,19 @@ Beyond decoration, Impetus adapts to the person and the moment:
 - **Deterministic rendering** — the same inputs always produce the same
   wallpaper; tested with golden tests.
 
-## Roadmap
+## Getting started
 
-1. Spike: `WallpaperManager.setBitmap` on a real device.
-2. **Repository skeleton** — clean architecture, CI, releases. ← we are here
-3. Rendering engine with golden tests.
-4. The configurator UI.
-5. Content: the curated quote and character library.
-6. The motivational heart (intent, quote of the day, moment awareness).
-7. Auto-change scheduling with WorkManager.
-8. First public release.
+You need the Flutter SDK (stable channel) and an Android device or emulator.
+
+```sh
+git clone https://github.com/chrisssp/impetus.git
+cd impetus
+flutter pub get
+flutter run
+```
+
+For the full contribution setup, development workflow and commit conventions,
+see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Technical stack
 
