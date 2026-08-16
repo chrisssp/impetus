@@ -15,7 +15,7 @@ import 'package:impetus/configurator/configurator_notifier.dart';
 import 'package:impetus/configurator/layer_model.dart';
 import 'package:impetus/configurator/preview_pipeline.dart';
 import 'package:impetus/configurator/preview_provider.dart';
-import 'package:impetus/models/render_config.dart' show ClockPosition;
+import 'package:impetus/models/render_config.dart';
 
 const List<int> _pngMagic = [0x89, 0x50, 0x4e, 0x47];
 
@@ -58,23 +58,29 @@ PreviewResult _result(String tag, {LayerBlockStatuses? blocks}) {
 void main() {
   testWidgets('debounces bursty state changes into one render of the latest '
       'config (D12)', (tester) async {
-    final (container, renderedConfigs) =
-        _container((_) async => _result('burst'));
+    final (container, renderedConfigs) = _container(
+      (_) async => _result('burst'),
+    );
     final notifier = container.read(configuratorStateProvider.notifier);
 
     container.read(previewProvider);
     notifier.setClockPosition(ClockPosition.topLeft);
     notifier.setClockPosition(ClockPosition.topRight);
-    notifier.setClockPosition(ClockPosition.bottomRight);
-    expect(renderedConfigs, hasLength(1),
-        reason: 'the debounce window has not elapsed yet');
+    notifier.setClockPosition(ClockPosition.bottomCenter);
+    expect(
+      renderedConfigs,
+      hasLength(1),
+      reason: 'the debounce window has not elapsed yet',
+    );
 
     await tester.pump(kPreviewDebounce);
 
     expect(renderedConfigs, hasLength(2));
-    expect(renderedConfigs.last.clockPosition, ClockPosition.bottomRight);
-    expect(container.read(previewProvider).value?.blocks,
-        const LayerBlockStatuses.empty());
+    expect(renderedConfigs.last.clockPosition, ClockPosition.bottomCenter);
+    expect(
+      container.read(previewProvider).value?.blocks,
+      const LayerBlockStatuses.empty(),
+    );
   });
 
   testWidgets('only the newest render wins even when an older one finishes '
@@ -90,7 +96,7 @@ void main() {
     container.read(previewProvider);
     notifier.setClockPosition(ClockPosition.topLeft);
     notifier.setClockPosition(ClockPosition.topRight);
-    notifier.setClockPosition(ClockPosition.bottomRight);
+    notifier.setClockPosition(ClockPosition.bottomCenter);
     await tester.pump(kPreviewDebounce);
 
     expect(completers, hasLength(2));
@@ -103,12 +109,16 @@ void main() {
 
     completers[0].complete(stale);
     await tester.pump();
-    expect(container.read(previewProvider).value?.png, newest.png,
-        reason: 'a stale render must not clobber the newest one');
+    expect(
+      container.read(previewProvider).value?.png,
+      newest.png,
+      reason: 'a stale render must not clobber the newest one',
+    );
   });
 
-  testWidgets('render errors surface as AsyncError without throwing (D12)',
-      (tester) async {
+  testWidgets('render errors surface as AsyncError without throwing (D12)', (
+    tester,
+  ) async {
     final (container, _) = _container(
       (_) async => throw StateError('render failed'),
     );
@@ -128,11 +138,15 @@ void main() {
     container.read(previewProvider);
 
     var blocks = container.read(blockStatusProvider);
-    expect(blocks.entries.every((e) => !e.blocked), isTrue,
-        reason: 'nothing is known yet, so nothing is blocked (D10)');
+    expect(
+      blocks.entries.every((e) => !e.blocked),
+      isTrue,
+      reason: 'nothing is known yet, so nothing is blocked (D10)',
+    );
 
     gate.complete(_result('data', blocks: _blockedPhrase));
-    await tester.pump();
+    await tester.pump(Duration.zero);
+    await tester.pump(Duration.zero);
 
     blocks = container.read(blockStatusProvider);
     expect(blocks.entries[LayerType.phrase.index].blocked, isTrue);
@@ -144,8 +158,9 @@ void main() {
   });
 
   testWidgets('layer navigation does not re-render (RE-CF-3)', (tester) async {
-    final (container, renderedConfigs) =
-        _container((_) async => _result('swipe'));
+    final (container, renderedConfigs) = _container(
+      (_) async => _result('swipe'),
+    );
     final notifier = container.read(configuratorStateProvider.notifier);
 
     container.read(previewProvider);
@@ -156,7 +171,10 @@ void main() {
     notifier.setActiveLayer(0);
     await tester.pump(kPreviewDebounce);
 
-    expect(renderedConfigs, hasLength(1),
-        reason: 'activeLayerIndex is not render-relevant (D12)');
+    expect(
+      renderedConfigs,
+      hasLength(1),
+      reason: 'activeLayerIndex is not render-relevant (D12)',
+    );
   });
 }

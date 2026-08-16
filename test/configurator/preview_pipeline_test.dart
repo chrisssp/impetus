@@ -24,13 +24,9 @@ const int _canvasHeight = 960;
 
 ConfiguratorState _baseState({List<List<LayerItem>>? pools}) {
   return ConfiguratorState(
-    pools: pools ??
-        [
-          kBackgroundCatalog,
-          kPhraseCatalog,
-          kCharacterCatalog,
-          kFontCatalog,
-        ],
+    pools:
+        pools ??
+        [kBackgroundCatalog, kPhraseCatalog, kCharacterCatalog, kFontCatalog],
   );
 }
 
@@ -58,87 +54,126 @@ void main() {
       await _expectValidCanvas(result.png);
       expect(result.blocks.entries, hasLength(4));
       for (final status in result.blocks.entries) {
-        expect(status.blocked, isFalse,
-            reason: '${status.reason} — ${status.suggestion}');
+        expect(
+          status.blocked,
+          isFalse,
+          reason: '${status.reason} — ${status.suggestion}',
+        );
       }
     });
 
-    test('empty phrase pool still renders and blocks the phrase layer', () async {
-      final config = buildRenderConfig(
-        _baseState(pools: [
-          kBackgroundCatalog,
-          const <LayerItem>[],
-          kCharacterCatalog,
-          kFontCatalog,
-        ]),
-      );
+    test(
+      'empty phrase pool still renders and blocks the phrase layer',
+      () async {
+        final config = buildRenderConfig(
+          _baseState(
+            pools: [
+              kBackgroundCatalog,
+              const <LayerItem>[],
+              kCharacterCatalog,
+              kFontCatalog,
+            ],
+          ),
+        );
 
-      final result = await renderPreview(config);
+        final result = await renderPreview(config);
 
-      await _expectValidCanvas(result.png);
-      expect(result.blocks.entries[LayerType.phrase.index].blocked, isTrue);
-      expect(result.blocks.entries[LayerType.background.index].blocked, isFalse);
-      expect(result.blocks.entries[LayerType.character.index].blocked, isFalse);
-      expect(result.blocks.entries[LayerType.font.index].blocked, isFalse);
-    });
+        await _expectValidCanvas(result.png);
+        expect(result.blocks.entries[LayerType.phrase.index].blocked, isTrue);
+        expect(
+          result.blocks.entries[LayerType.background.index].blocked,
+          isFalse,
+        );
+        expect(
+          result.blocks.entries[LayerType.character.index].blocked,
+          isFalse,
+        );
+        expect(result.blocks.entries[LayerType.font.index].blocked, isFalse);
+      },
+    );
 
-    test('empty character pool still renders and blocks the character layer', () async {
-      final config = buildRenderConfig(
-        _baseState(pools: [
-          kBackgroundCatalog,
-          kPhraseCatalog,
-          const <LayerItem>[],
-          kFontCatalog,
-        ]),
-      );
+    test(
+      'empty character pool still renders and blocks the character layer',
+      () async {
+        final config = buildRenderConfig(
+          _baseState(
+            pools: [
+              kBackgroundCatalog,
+              kPhraseCatalog,
+              const <LayerItem>[],
+              kFontCatalog,
+            ],
+          ),
+        );
 
-      final result = await renderPreview(config);
+        final result = await renderPreview(config);
 
-      await _expectValidCanvas(result.png);
-      expect(result.blocks.entries[LayerType.character.index].blocked, isTrue);
-      expect(result.blocks.entries[LayerType.background.index].blocked, isFalse);
-      expect(result.blocks.entries[LayerType.phrase.index].blocked, isFalse);
-      expect(result.blocks.entries[LayerType.font.index].blocked, isFalse);
-    });
+        await _expectValidCanvas(result.png);
+        expect(
+          result.blocks.entries[LayerType.character.index].blocked,
+          isTrue,
+        );
+        expect(
+          result.blocks.entries[LayerType.background.index].blocked,
+          isFalse,
+        );
+        expect(result.blocks.entries[LayerType.phrase.index].blocked, isFalse);
+        expect(result.blocks.entries[LayerType.font.index].blocked, isFalse);
+      },
+    );
 
-    test('fully degenerate config renders a valid PNG with every layer blocked', () async {
-      final config = buildRenderConfig(
-        _baseState(pools: [
-          const <LayerItem>[],
-          const <LayerItem>[],
-          const <LayerItem>[],
-          const <LayerItem>[],
-        ]),
-      );
+    test(
+      'fully degenerate config renders a valid PNG with every layer blocked',
+      () async {
+        final config = buildRenderConfig(
+          _baseState(
+            pools: [
+              const <LayerItem>[],
+              const <LayerItem>[],
+              const <LayerItem>[],
+              const <LayerItem>[],
+            ],
+          ),
+        );
 
-      final result = await renderPreview(config);
+        final result = await renderPreview(config);
 
-      await _expectValidCanvas(result.png);
-      for (final status in result.blocks.entries) {
-        expect(status.blocked, isTrue,
-            reason: 'expected ${status.reason} — ${status.suggestion}');
-      }
-    });
+        await _expectValidCanvas(result.png);
+        for (final status in result.blocks.entries) {
+          expect(
+            status.blocked,
+            isTrue,
+            reason: 'expected ${status.reason} — ${status.suggestion}',
+          );
+        }
+      },
+    );
 
-    test('clock position is forwarded to the rendered config (RE-CF-8)', () async {
-      final config = buildRenderConfig(
-        _baseState().copyWith(clockPosition: ClockPosition.bottomRight),
-      );
+    test(
+      'clock position is forwarded to the rendered config (RE-CF-8)',
+      () async {
+        final config = buildRenderConfig(
+          _baseState().copyWith(clockPosition: ClockPosition.bottomCenter),
+        );
 
-      final result = await renderPreview(config);
+        final result = await renderPreview(config);
 
-      await _expectValidCanvas(result.png);
-      expect(result.blocks.entries[LayerType.phrase.index].blocked, isFalse);
-    });
+        await _expectValidCanvas(result.png);
+        expect(result.blocks.entries[LayerType.phrase.index].blocked, isFalse);
+      },
+    );
 
-    test('is deterministic: the same config renders byte-identical PNGs', () async {
-      final config = buildRenderConfig(_baseState());
+    test(
+      'is deterministic: the same config renders byte-identical PNGs',
+      () async {
+        final config = buildRenderConfig(_baseState());
 
-      final first = await renderPreview(config);
-      final second = await renderPreview(config);
+        final first = await renderPreview(config);
+        final second = await renderPreview(config);
 
-      expect(first.png, second.png);
-      expect(first.blocks.entries, second.blocks.entries);
-    });
+        expect(first.png, second.png);
+        expect(first.blocks.entries, second.blocks.entries);
+      },
+    );
   });
 }
