@@ -50,5 +50,12 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Keystore / signing material (never commit)
+*.jks
+*.keystore
+
+# Kotlin Gradle daemon session state
+android/.kotlin/
+
 # Widget Preview related
 .widget_preview/

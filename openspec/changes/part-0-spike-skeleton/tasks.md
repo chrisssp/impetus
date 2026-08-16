@@ -53,14 +53,14 @@ Chain strategy: stacked-to-main
 
 ## Phase 5: ci-signing (Keystore + Workflow + Gitignore)
 
-- [ ] 5.1 Update `.gitignore`: add `*.jks`, `*.keystore` patterns
-- [ ] 5.2 Update `android/app/build.gradle.kts`: add conditional `signingConfigs.release` reading `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` from `System.getenv()`; fallback to `signingConfigs.debug` when unset; apply to `buildTypes.release`
-- [ ] 5.3 Update `.github/workflows/release.yml`: add step to decode `KEYSTORE_BASE64` → `/tmp/keystore.jks` before `flutter build apk --release`; ensure `apksigner` uses `--ks --ks-pass --ks-key-alias --key-pass` with v2+v3; fail workflow if signing fails; attach signed APK to release
+- [x] 5.1 Update `.gitignore`: add `*.jks`, `*.keystore` patterns
+- [x] 5.2 Update `android/app/build.gradle.kts`: add conditional `signingConfigs.release` reading `KEYSTORE_PATH`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD` from `System.getenv()`; fallback to `signingConfigs.debug` when unset; apply to `buildTypes.release`
+- [x] 5.3 Update `.github/workflows/release.yml`: add step to decode `KEYSTORE_BASE64` → `/tmp/keystore.jks` before `flutter build apk --release`; ensure `apksigner` uses `--ks --ks-pass --ks-key-alias --key-pass` with v2+v3; fail workflow if signing fails; attach signed APK to release
 - [ ] 5.4 **MANUAL (Non-code)** Document keystore generation recipe in PR description: `keytool -genkeypair -alias impetus-key -keyalg RSA -keysize 2048 -validity 10000 -keystore keystore.jks` → `base64 -w0 keystore.jks` → add 4 GitHub secrets (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) — repo admin executes at apply time
 
 ## Phase 6: Verification (Exit Criteria)
 
-- [ ] 6.1 Run `flutter analyze --fatal-infos` — zero issues required
-- [ ] 6.2 Run `flutter test` — all tests pass (unit, widget, golden)
-- [ ] 6.3 Verify `flutter test --update-goldens` regenerates golden cleanly on intentional changes
+- [x] 6.1 Run `flutter analyze --fatal-infos` — zero issues required
+- [x] 6.2 Run `flutter test` — all tests pass (unit, widget, golden)
+- [x] 6.3 Verify `flutter test --update-goldens` regenerates golden cleanly on intentional changes
 - [ ] 6.4 Tag push triggers `release.yml` → signed APK attached to GitHub Release (manual verification in CI)
