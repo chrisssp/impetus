@@ -58,7 +58,9 @@ void main() {
     });
 
     test('resolves the selected phrase item into config.quoteText', () {
-      final state = _state(selectedIds: const [null, 'ph_discipline', null, null]);
+      final state = _state(
+        selectedIds: const [null, 'ph_discipline', null, null],
+      );
       expect(
         buildRenderConfig(state).quoteText,
         'Discipline beats motivation.',

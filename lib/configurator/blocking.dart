@@ -46,17 +46,13 @@ const String _fontSuggestion = 'Add a font to the pool.';
 /// Per-layer blocking result: whether the layer is blocked and why, plus the
 /// suggestion shown in the UI to unblock it.
 class LayerBlockStatus {
-  const LayerBlockStatus({
-    required this.blocked,
-    this.reason,
-    this.suggestion,
-  });
+  const LayerBlockStatus({required this.blocked, this.reason, this.suggestion});
 
   /// A not-blocked status with no reason and no suggestion.
   const LayerBlockStatus.clear()
-      : blocked = false,
-        reason = null,
-        suggestion = null;
+    : blocked = false,
+      reason = null,
+      suggestion = null;
 
   final bool blocked;
   final BlockReason? reason;
@@ -69,12 +65,12 @@ class LayerBlockStatuses {
 
   /// All layers unblocked — used by consumers that render without analysis.
   const LayerBlockStatuses.empty()
-      : entries = const [
-          LayerBlockStatus.clear(),
-          LayerBlockStatus.clear(),
-          LayerBlockStatus.clear(),
-          LayerBlockStatus.clear(),
-        ];
+    : entries = const [
+        LayerBlockStatus.clear(),
+        LayerBlockStatus.clear(),
+        LayerBlockStatus.clear(),
+        LayerBlockStatus.clear(),
+      ];
 
   final List<LayerBlockStatus> entries;
 }

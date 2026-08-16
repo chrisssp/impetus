@@ -37,8 +37,7 @@ LayerItem? _firstResolved(List<LayerItem> pool, String? selectedId) {
 
 /// Maps [state] onto the engine's [RenderConfig] for the preview layer.
 RenderConfig buildRenderConfig(ConfiguratorState state) {
-  final background =
-      _firstResolved(state.pools[0], state.selectedIds[0]);
+  final background = _firstResolved(state.pools[0], state.selectedIds[0]);
   final phrase = _firstResolved(state.pools[1], state.selectedIds[1]);
   final character = _firstResolved(state.pools[2], state.selectedIds[2]);
   final font = _firstResolved(state.pools[3], state.selectedIds[3]);

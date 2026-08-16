@@ -8,7 +8,7 @@
 // none may throw (RE-CF-7).
 
 import 'dart:io';
-import 'dart:ui' show Offset, Rect, Size;
+import 'dart:ui' show Offset, Rect;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:impetus/configurator/blocking.dart';
@@ -25,8 +25,6 @@ import 'package:impetus/models/zones.dart';
 
 import '../helpers/load_roboto.dart';
 
-const _canvas = Size(540, 960);
-
 final _fixturePng = File('test/fixtures/character_alpha.png').readAsBytesSync();
 
 const _phraseSuggestion =
@@ -40,22 +38,16 @@ const _addFontSuggestion = 'Add a font to the pool.';
 /// The committed fixture as a [CharacterItem], so the detection path runs over
 /// real visible art (design D9).
 List<CharacterItem> _fixtureCharacter() => [
-      CharacterItem(id: 'ch_fixture', label: 'Fixture', bytes: _fixturePng),
-    ];
+  CharacterItem(id: 'ch_fixture', label: 'Fixture', bytes: _fixturePng),
+];
 
 /// Measures the character bbox and resolved layout for [config] through the
 /// exported engine pipeline: detect -> compute -> filter (design D9).
-Future<({Rect bbox, LayoutResult layout})> _measure(
-  RenderConfig config,
-) async {
+Future<({Rect bbox, LayoutResult layout})> _measure(RenderConfig config) async {
   final bbox = config.characterPng == null
       ? Rect.zero
       : await AlphaBboxDetector.detect(config.characterPng!);
-  final zones = ZoneCalculator.compute(
-    config.size,
-    config.clockPosition,
-    bbox,
-  );
+  final zones = ZoneCalculator.compute(config.size, config.clockPosition, bbox);
   final layout = LayoutFilter.filter(
     config.size,
     config.clockPosition,
@@ -131,25 +123,29 @@ void main() {
       expect(statuses.entries[LayerType.font.index].blocked, isFalse);
     });
 
-    test('phrase is blocked when the layout leaves no room for the quote',
-        () async {
-      final state = _state(
-        phrasePool: [
-          PhraseItem(id: 'ph_huge', label: 'Huge', text: _hugeQuote()),
-        ],
-        selectedIds: const [null, 'ph_huge', null, null],
-      );
-      final config = buildRenderConfig(state);
-      final measured = await _measure(config);
-      expect(measured.layout.quoteRect, Rect.zero); // precondition
+    test(
+      'phrase is blocked when the layout leaves no room for the quote',
+      () async {
+        final state = _state(
+          phrasePool: [
+            PhraseItem(id: 'ph_huge', label: 'Huge', text: _hugeQuote()),
+          ],
+          selectedIds: const [null, 'ph_huge', null, null],
+        );
+        final config = buildRenderConfig(state);
+        final measured = await _measure(config);
+        expect(measured.layout.quoteRect, Rect.zero); // precondition
 
-      final phrase =
-          BlockAnalyzer.analyze(config, measured.bbox, measured.layout)
-              .entries[LayerType.phrase.index];
-      expect(phrase.blocked, isTrue);
-      expect(phrase.reason, BlockReason.noFreeZone);
-      expect(phrase.suggestion, _phraseSuggestion);
-    });
+        final phrase = BlockAnalyzer.analyze(
+          config,
+          measured.bbox,
+          measured.layout,
+        ).entries[LayerType.phrase.index];
+        expect(phrase.blocked, isTrue);
+        expect(phrase.reason, BlockReason.noFreeZone);
+        expect(phrase.suggestion, _phraseSuggestion);
+      },
+    );
 
     test('character is blocked when bytes are missing', () async {
       final statuses = await _statuses(_state(characterPool: const []));
@@ -160,25 +156,29 @@ void main() {
       expect(statuses.entries[LayerType.phrase.index].blocked, isFalse);
     });
 
-    test('character is blocked when its bbox is empty (no visible art)',
-        () async {
-      final config = buildRenderConfig(_state());
-      // Real fixture bytes, but a zero bbox: bytes exist, art does not.
-      final statuses = BlockAnalyzer.analyze(config, Rect.zero, _roomyLayout);
-      final character = statuses.entries[LayerType.character.index];
-      expect(character.blocked, isTrue);
-      expect(character.reason, BlockReason.noCharacterContent);
-      expect(character.suggestion, _pickCharacterSuggestion);
-      expect(statuses.entries[LayerType.phrase.index].blocked, isFalse);
-    });
+    test(
+      'character is blocked when its bbox is empty (no visible art)',
+      () async {
+        final config = buildRenderConfig(_state());
+        // Real fixture bytes, but a zero bbox: bytes exist, art does not.
+        final statuses = BlockAnalyzer.analyze(config, Rect.zero, _roomyLayout);
+        final character = statuses.entries[LayerType.character.index];
+        expect(character.blocked, isTrue);
+        expect(character.reason, BlockReason.noCharacterContent);
+        expect(character.suggestion, _pickCharacterSuggestion);
+        expect(statuses.entries[LayerType.phrase.index].blocked, isFalse);
+      },
+    );
 
     test('character is unblocked when the fixture art is measured', () async {
       final config = buildRenderConfig(_state());
       final measured = await _measure(config);
       expect(measured.bbox, isNot(Rect.zero)); // precondition
-      final character =
-          BlockAnalyzer.analyze(config, measured.bbox, measured.layout)
-              .entries[LayerType.character.index];
+      final character = BlockAnalyzer.analyze(
+        config,
+        measured.bbox,
+        measured.layout,
+      ).entries[LayerType.character.index];
       expect(character.blocked, isFalse);
     });
 
@@ -211,8 +211,11 @@ void main() {
       );
       final config = buildRenderConfig(state);
       final measured = await _measure(config);
-      final statuses =
-          BlockAnalyzer.analyze(config, measured.bbox, measured.layout);
+      final statuses = BlockAnalyzer.analyze(
+        config,
+        measured.bbox,
+        measured.layout,
+      );
       expect(statuses.entries, hasLength(4));
       expect(statuses.entries[LayerType.background.index].blocked, isTrue);
       expect(statuses.entries[LayerType.phrase.index].blocked, isTrue);
