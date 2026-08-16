@@ -67,7 +67,7 @@ class PreviewNotifier extends AsyncNotifier<PreviewResult> {
       _debounce?.cancel();
       _disposed = true;
     });
-    ref.listen(previewConfigProvider, (_, __) => _scheduleDebouncedRender());
+    ref.listen(previewConfigProvider, (_, _) => _scheduleDebouncedRender());
     return _renderInitial();
   }
 
