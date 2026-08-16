@@ -36,7 +36,13 @@ bool _differs(
 
 /// Number of pixels whose color differs from [background] by more than
 /// [tolerance] per channel.
-int countInk(Uint8List rgba, int width, int height, ui.Color background, {int tolerance = 8}) {
+int countInk(
+  Uint8List rgba,
+  int width,
+  int height,
+  ui.Color background, {
+  int tolerance = 8,
+}) {
   var count = 0;
   for (var y = 0; y < height; y++) {
     for (var x = 0; x < width; x++) {

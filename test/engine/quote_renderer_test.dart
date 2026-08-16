@@ -19,12 +19,18 @@ void main() {
 
   group('QuoteRenderer.textColorFor', () {
     test('returns white on dark backgrounds', () {
-      expect(QuoteRenderer.textColorFor(ui.Color(0xFF000000)), const ui.Color(0xFFFFFFFF));
+      expect(
+        QuoteRenderer.textColorFor(ui.Color(0xFF000000)),
+        const ui.Color(0xFFFFFFFF),
+      );
       expect(QuoteRenderer.textColorFor(_dark), const ui.Color(0xFFFFFFFF));
     });
 
     test('returns black on light backgrounds', () {
-      expect(QuoteRenderer.textColorFor(const ui.Color(0xFFFFFFFF)), const ui.Color(0xFF000000));
+      expect(
+        QuoteRenderer.textColorFor(const ui.Color(0xFFFFFFFF)),
+        const ui.Color(0xFF000000),
+      );
       expect(QuoteRenderer.textColorFor(_light), const ui.Color(0xFF000000));
     });
 
@@ -55,15 +61,24 @@ void main() {
   group('QuoteRenderer.contrastRatio', () {
     test('computes the WCAG contrast ratio', () {
       expect(
-        QuoteRenderer.contrastRatio(const ui.Color(0xFFFFFFFF), const ui.Color(0xFF000000)),
+        QuoteRenderer.contrastRatio(
+          const ui.Color(0xFFFFFFFF),
+          const ui.Color(0xFF000000),
+        ),
         moreOrLessEquals(21.0, epsilon: 1e-6),
       );
       expect(
-        QuoteRenderer.contrastRatio(const ui.Color(0xFF000000), const ui.Color(0xFFFFFFFF)),
+        QuoteRenderer.contrastRatio(
+          const ui.Color(0xFF000000),
+          const ui.Color(0xFFFFFFFF),
+        ),
         moreOrLessEquals(21.0, epsilon: 1e-6),
       );
       expect(
-        QuoteRenderer.contrastRatio(const ui.Color(0xFFFFFFFF), const ui.Color(0xFFFFFFFF)),
+        QuoteRenderer.contrastRatio(
+          const ui.Color(0xFFFFFFFF),
+          const ui.Color(0xFFFFFFFF),
+        ),
         moreOrLessEquals(1.0, epsilon: 1e-6),
       );
     });
@@ -73,7 +88,8 @@ void main() {
     test('wraps long text at the given width', () {
       final paragraph = QuoteRenderer.buildParagraph(
         _longText(),
-        const ui.TextStyle(fontFamily: 'Roboto', fontSize: 45),
+        'Roboto',
+        45,
         300,
       )..layout(const ui.ParagraphConstraints(width: 300));
 
@@ -85,7 +101,8 @@ void main() {
     test('exposes the paragraph for tests', () {
       final paragraph = QuoteRenderer.buildParagraph(
         'Do the thing',
-        const ui.TextStyle(fontFamily: 'Roboto', fontSize: 45),
+        'Roboto',
+        45,
         1080,
       )..layout(const ui.ParagraphConstraints(width: 1080));
 
@@ -146,12 +163,17 @@ void main() {
         );
         final paragraph = QuoteRenderer.buildParagraph(
           'AB',
-          const ui.TextStyle(fontFamily: 'Roboto', fontSize: 30, color: ui.Color(0xFF000000)),
+          'Roboto',
+          30,
           shadowRect.width,
+          color: const ui.Color(0xFF000000),
         )..layout(ui.ParagraphConstraints(width: shadowRect.width));
         canvas.drawParagraph(
           paragraph,
-          ui.Offset(shadowRect.left, shadowRect.top + (shadowRect.height - paragraph.height) / 2),
+          ui.Offset(
+            shadowRect.left,
+            shadowRect.top + (shadowRect.height - paragraph.height) / 2,
+          ),
         );
       });
 
@@ -183,12 +205,23 @@ void main() {
       }
 
       final defaultPng = await draw(null).then(
-        (picture) => picture.toImage(800, 400).then((image) => image.toByteData(format: ui.ImageByteFormat.rawRgba)),
+        (picture) => picture
+            .toImage(800, 400)
+            .then(
+              (image) => image.toByteData(format: ui.ImageByteFormat.rawRgba),
+            ),
       );
       final explicitPng = await draw('Roboto').then(
-        (picture) => picture.toImage(800, 400).then((image) => image.toByteData(format: ui.ImageByteFormat.rawRgba)),
+        (picture) => picture
+            .toImage(800, 400)
+            .then(
+              (image) => image.toByteData(format: ui.ImageByteFormat.rawRgba),
+            ),
       );
-      expect(defaultPng!.buffer.asUint8List(), equals(explicitPng!.buffer.asUint8List()));
+      expect(
+        defaultPng!.buffer.asUint8List(),
+        equals(explicitPng!.buffer.asUint8List()),
+      );
 
       final rgba = await renderRgba(800, 400, (canvas) {
         canvas.drawRect(

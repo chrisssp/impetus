@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui'
     show
         Offset,
-        Paragraph,
         ParagraphBuilder,
         ParagraphConstraints,
         ParagraphStyle,
