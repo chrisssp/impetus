@@ -9,12 +9,20 @@
 //      AppBar action that is one-shot (RE-AS-3).
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:impetus/configurator/configurator_view.dart';
 import 'package:impetus/main.dart';
 
 void main() {
+  const channel = MethodChannel('com.impetus.impetus/wallpaper');
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
+  });
+
   testWidgets('renders the configurator home inside a ProviderScope', (
     WidgetTester tester,
   ) async {
@@ -52,6 +60,11 @@ void main() {
   testWidgets('dev spike trigger is one-shot (RE-AS-3)', (
     WidgetTester tester,
   ) async {
+    // The platform reports a failed wallpaper set: mock the channel to return
+    // false (an unmocked channel never completes under the fake async zone).
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (_) async => false);
+
     await tester.pumpWidget(const ProviderScope(child: MainApp()));
 
     final trigger = find.byIcon(Icons.wallpaper);
