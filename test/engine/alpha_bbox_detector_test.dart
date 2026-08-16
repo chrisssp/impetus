@@ -72,6 +72,29 @@ void main() {
       },
     );
 
+    test(
+      'finds the leftmost opaque pixel even when it is not on the top row',
+      () async {
+        // An L shape: a top bar whose opaque run starts at x=12 and a lower
+        // column that reaches x=4. The topmost row is not the leftmost one.
+        final png = await _encodePng(32, 32, (canvas) {
+          canvas.drawRect(
+            const ui.Rect.fromLTRB(12, 4, 20, 10),
+            _hardFill(255, 200, 40, 90),
+          );
+          canvas.drawRect(
+            const ui.Rect.fromLTRB(4, 10, 12, 18),
+            _hardFill(255, 200, 40, 90),
+          );
+        });
+
+        expect(
+          await AlphaBboxDetector.detect(png),
+          const ui.Rect.fromLTRB(4, 4, 20, 18),
+        );
+      },
+    );
+
     test('treats alpha 128 as transparent and alpha 129 as opaque', () async {
       final png = await _encodePng(32, 32, (canvas) {
         canvas.drawRect(
