@@ -16,32 +16,39 @@ void main() {
   group('ZoneCalculator.compute', () {
     const size1080x1920 = Size(1080, 1920);
 
-    test('places the system zone full-width at the top for all top presets',
-        () {
-      const subject = Rect.fromLTRB(340, 900, 740, 1400);
-      for (final preset in [
-        ClockPosition.topCenter,
-        ClockPosition.topLeft,
-        ClockPosition.topRight,
-      ]) {
-        final zones = ZoneCalculator.compute(size1080x1920, preset, subject);
+    test(
+      'places the system zone full-width at the top for all top presets',
+      () {
+        const subject = Rect.fromLTRB(340, 900, 740, 1400);
+        for (final preset in [
+          ClockPosition.topCenter,
+          ClockPosition.topLeft,
+          ClockPosition.topRight,
+        ]) {
+          final zones = ZoneCalculator.compute(size1080x1920, preset, subject);
 
-        expect(zones.system, const Rect.fromLTRB(0, 0, 1080, 288),
-            reason: '$preset');
-      }
-    });
+          expect(
+            zones.system,
+            const Rect.fromLTRB(0, 0, 1080, 288),
+            reason: '$preset',
+          );
+        }
+      },
+    );
 
-    test('places the system zone full-width at the bottom for bottomCenter',
-        () {
-      const subject = Rect.fromLTRB(340, 900, 740, 1400);
-      final zones = ZoneCalculator.compute(
-        size1080x1920,
-        ClockPosition.bottomCenter,
-        subject,
-      );
+    test(
+      'places the system zone full-width at the bottom for bottomCenter',
+      () {
+        const subject = Rect.fromLTRB(340, 900, 740, 1400);
+        final zones = ZoneCalculator.compute(
+          size1080x1920,
+          ClockPosition.bottomCenter,
+          subject,
+        );
 
-      expect(zones.system, const Rect.fromLTRB(0, 1632, 1080, 1920));
-    });
+        expect(zones.system, const Rect.fromLTRB(0, 1632, 1080, 1920));
+      },
+    );
 
     test('rounds the system strip height to round(h * 0.15)', () {
       final zones = ZoneCalculator.compute(
@@ -53,8 +60,7 @@ void main() {
       expect(zones.system.height, 150.0);
     });
 
-    test('returns the full band as the free zone when there is no subject',
-        () {
+    test('returns the full band as the free zone when there is no subject', () {
       final zones = ZoneCalculator.compute(
         const Size(1000, 1000),
         ClockPosition.topCenter,
@@ -119,10 +125,16 @@ void main() {
         for (final subject in subjects) {
           final zones = ZoneCalculator.compute(size1080x1920, preset, subject);
 
-          expect(zones.free.overlaps(zones.system), isFalse,
-              reason: '$preset / $subject');
-          expect(zones.free.overlaps(subject), isFalse,
-              reason: '$preset / $subject');
+          expect(
+            zones.free.overlaps(zones.system),
+            isFalse,
+            reason: '$preset / $subject',
+          );
+          expect(
+            zones.free.overlaps(subject),
+            isFalse,
+            reason: '$preset / $subject',
+          );
         }
       }
     });

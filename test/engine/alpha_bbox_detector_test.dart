@@ -34,39 +34,43 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('AlphaBboxDetector.detect', () {
-    test('returns the exact bbox of an opaque rect on a transparent canvas',
-        () async {
-      final png = await _encodePng(40, 40, (canvas) {
-        canvas.drawRect(
+    test(
+      'returns the exact bbox of an opaque rect on a transparent canvas',
+      () async {
+        final png = await _encodePng(40, 40, (canvas) {
+          canvas.drawRect(
+            const ui.Rect.fromLTRB(5, 9, 27, 30),
+            _hardFill(255, 200, 40, 90),
+          );
+        });
+
+        expect(
+          await AlphaBboxDetector.detect(png),
           const ui.Rect.fromLTRB(5, 9, 27, 30),
-          _hardFill(255, 200, 40, 90),
         );
-      });
+      },
+    );
 
-      expect(
-        await AlphaBboxDetector.detect(png),
-        const ui.Rect.fromLTRB(5, 9, 27, 30),
-      );
-    });
+    test(
+      'ignores alpha-128 pixels: bbox covers only the opaque region',
+      () async {
+        final png = await _encodePng(32, 32, (canvas) {
+          canvas.drawRect(
+            const ui.Rect.fromLTRB(0, 0, 32, 32),
+            _hardFill(128, 255, 255, 255),
+          );
+          canvas.drawRect(
+            const ui.Rect.fromLTRB(6, 5, 18, 17),
+            _hardFill(255, 10, 20, 30),
+          );
+        });
 
-    test('ignores alpha-128 pixels: bbox covers only the opaque region',
-        () async {
-      final png = await _encodePng(32, 32, (canvas) {
-        canvas.drawRect(
-          const ui.Rect.fromLTRB(0, 0, 32, 32),
-          _hardFill(128, 255, 255, 255),
-        );
-        canvas.drawRect(
+        expect(
+          await AlphaBboxDetector.detect(png),
           const ui.Rect.fromLTRB(6, 5, 18, 17),
-          _hardFill(255, 10, 20, 30),
         );
-      });
-
-      expect(
-        await AlphaBboxDetector.detect(png),
-        const ui.Rect.fromLTRB(6, 5, 18, 17),
-      );
-    });
+      },
+    );
 
     test('treats alpha 128 as transparent and alpha 129 as opaque', () async {
       final png = await _encodePng(32, 32, (canvas) {
@@ -92,17 +96,19 @@ void main() {
       expect(await AlphaBboxDetector.detect(png), ui.Rect.zero);
     });
 
-    test('returns Rect.zero when every pixel has alpha at or below 128',
-        () async {
-      final png = await _encodePng(16, 16, (canvas) {
-        canvas.drawRect(
-          const ui.Rect.fromLTRB(0, 0, 16, 16),
-          _hardFill(128, 255, 255, 255),
-        );
-      });
+    test(
+      'returns Rect.zero when every pixel has alpha at or below 128',
+      () async {
+        final png = await _encodePng(16, 16, (canvas) {
+          canvas.drawRect(
+            const ui.Rect.fromLTRB(0, 0, 16, 16),
+            _hardFill(128, 255, 255, 255),
+          );
+        });
 
-      expect(await AlphaBboxDetector.detect(png), ui.Rect.zero);
-    });
+        expect(await AlphaBboxDetector.detect(png), ui.Rect.zero);
+      },
+    );
 
     test('returns Rect.zero for corrupt PNG bytes', () async {
       final corrupt = Uint8List.fromList([1, 2, 3, 4, 5, 6, 7, 8]);
