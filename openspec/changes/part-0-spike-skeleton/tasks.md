@@ -41,15 +41,15 @@ Chain strategy: stacked-to-main
 
 ## Phase 3: golden-harness (Roboto + Deterministic Golden)
 
-- [ ] 3.1 Add `test/fonts/Roboto-Regular.ttf` (canonical Roboto Regular, ~170KB)
-- [ ] 3.2 **RED** Create `test/golden/app_shell_golden_test.dart`: load font via `FontLoader('Roboto').addFont(rootBundle.load('test/fonts/Roboto-Regular.ttf'))` in `setUpAll`, pump `ProviderScope(child: MainApp())` with `fontFamily: 'Roboto'` pinned, `await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/app_shell.png'))`
-- [ ] 3.3 **GREEN** First run generates golden baseline; subsequent runs must match byte-identically on CI and local
+- [x] 3.1 Add `test/fonts/Roboto-Regular.ttf` (canonical Roboto Regular, ~170KB)
+- [x] 3.2 **RED** Create `test/golden/app_shell_golden_test.dart`: load font via `FontLoader('Roboto').addFont(rootBundle.load('test/fonts/Roboto-Regular.ttf'))` in `setUpAll`, pump `ProviderScope(child: MainApp())` with `fontFamily: 'Roboto'` pinned, `await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/app_shell.png'))`
+- [x] 3.3 **GREEN** First run generates golden baseline; subsequent runs must match byte-identically on CI and local
 
 ## Phase 4: app-shell (ProviderScope + Widget Tests)
 
-- [ ] 4.1 **RED** Update `test/widget_test.dart`: wrap `MainApp()` with `ProviderScope`, verify `find.text('Impetus')` and `find.byType(FloatingActionButton)` exist
-- [ ] 4.2 **GREEN** Verify `lib/main.dart` from Phase 2.5 satisfies updated widget test (ProviderScope, MaterialApp, placeholder home, FAB)
-- [ ] 4.3 **GREEN** Run `flutter test test/widget_test.dart` — must pass
+- [x] 4.1 **RED** Update `test/widget_test.dart`: wrap `MainApp()` with `ProviderScope`, verify `find.text('Impetus')` and `find.byType(FloatingActionButton)` exist
+- [x] 4.2 **GREEN** Verify `lib/main.dart` from Phase 2.5 satisfies updated widget test (ProviderScope, MaterialApp, placeholder home, FAB)
+- [x] 4.3 **GREEN** Run `flutter test test/widget_test.dart` — must pass
 
 ## Phase 5: ci-signing (Keystore + Workflow + Gitignore)
 
