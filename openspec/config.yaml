@@ -3,9 +3,10 @@ schema: spec-driven
 context: |
   Project: impetus — Flutter lock-screen motivational wallpaper app (MVP).
   Tech stack: Flutter 3.47.0 / Dart SDK ^3.13.0 (stable channel).
-  Architecture: default Flutter single-package app (lib/), Material 3.
-  State management: none yet (plain StatefulWidget / setState; MVP scope).
-  Testing: flutter_test (unit + widget), flutter_lints ^6.0.0 via analysis_options.yaml.
+  Architecture: default Flutter single-package app (lib/), Material 3; render engine is pure dart:ui (no widgets/plugins).
+  State management: Riverpod (flutter_riverpod) — ConfiguratorNotifier (Notifier<ConfiguratorState>) + previewProvider (AsyncNotifier) + providers in lib/configurator/.
+  App home: ConfiguratorView (layered swipe configurator); SpikeDevTrigger is a kDebugMode-only dev entry.
+  Testing: flutter_test (unit + widget + golden), flutter_lints ^6.0.0 via analysis_options.yaml.
   Style: dart format (default flutter style), flutter_lints strict set.
   Platforms: android, web, linux scaffolded.
 
