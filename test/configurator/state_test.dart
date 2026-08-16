@@ -28,8 +28,8 @@ const _layerOrder = [
 ];
 
 /// A minimal PNG header for test-only [CharacterItem] instances.
-Uint8List _tinyPng() => Uint8List.fromList(
-    const [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+Uint8List _tinyPng() =>
+    Uint8List.fromList(const [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 /// A fresh state built from the placeholder catalogs and dynamic modes.
 ConfiguratorState _baseState() {
@@ -88,19 +88,18 @@ void main() {
         ],
       );
 
-      expect(
-        updated.modes,
-        const [LayerMode.fixed, LayerMode.fixed, LayerMode.fixed, LayerMode.fixed],
-      );
-      expect(
-        original.modes,
-        const [
-          LayerMode.dynamic,
-          LayerMode.dynamic,
-          LayerMode.dynamic,
-          LayerMode.dynamic,
-        ],
-      );
+      expect(updated.modes, const [
+        LayerMode.fixed,
+        LayerMode.fixed,
+        LayerMode.fixed,
+        LayerMode.fixed,
+      ]);
+      expect(original.modes, const [
+        LayerMode.dynamic,
+        LayerMode.dynamic,
+        LayerMode.dynamic,
+        LayerMode.dynamic,
+      ]);
       expect(updated.activeLayerIndex, original.activeLayerIndex);
       expect(updated.pools, original.pools);
       expect(updated.selectedIds, original.selectedIds);
@@ -131,22 +130,35 @@ void main() {
         ],
         pools: [
           <BackgroundItem>[
-            BackgroundItem(id: 'bg_a', label: 'A', color: const Color(0xFF000000)),
+            BackgroundItem(
+              id: 'bg_a',
+              label: 'A',
+              color: const Color(0xFF000000),
+            ),
           ],
           <PhraseItem>[PhraseItem(id: 'ph_a', label: 'A', text: 'a')],
-          <CharacterItem>[CharacterItem(id: 'ch_a', label: 'A', bytes: _tinyPng())],
+          <CharacterItem>[
+            CharacterItem(id: 'ch_a', label: 'A', bytes: _tinyPng()),
+          ],
           <FontItem>[FontItem(id: 'fo_a', label: 'A', family: 'Roboto')],
         ],
       );
 
-      expect(() => updated.modes.add(LayerMode.dynamic), throwsUnsupportedError);
+      expect(
+        () => updated.modes.add(LayerMode.dynamic),
+        throwsUnsupportedError,
+      );
       expect(() => updated.selectedIds.add('x'), throwsUnsupportedError);
       expect(() => updated.frozen.add(true), throwsUnsupportedError);
       expect(() => updated.pools.add(const []), throwsUnsupportedError);
       expect(
         () => updated.pools[0].add(
-              BackgroundItem(id: 'bg_b', label: 'B', color: const Color(0xFFFFFFFF)),
-            ),
+          BackgroundItem(
+            id: 'bg_b',
+            label: 'B',
+            color: const Color(0xFFFFFFFF),
+          ),
+        ),
         throwsUnsupportedError,
       );
     });
@@ -249,8 +261,7 @@ void main() {
     test('character placeholders carry real, non-empty PNG bytes', () {
       expect(kCharacterCatalog, hasLength(greaterThan(0)));
 
-      for (final item in kCharacterCatalog) {
-        final character = item as CharacterItem;
+      for (final character in kCharacterCatalog) {
         expect(character.bytes, isNotEmpty);
         expect(character.bytes.sublist(0, 4), const [0x89, 0x50, 0x4e, 0x47]);
       }
