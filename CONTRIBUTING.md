@@ -108,6 +108,26 @@ touched when strictly necessary — the product logic lives in `lib/` and
 5. Open a pull request using the **Pull request template**. Reference the issue
    it fixes (e.g. "Fixes #12").
 
+### Pull request metadata
+
+Every pull request carries metadata that keeps the backlog triageable. It is
+part of the review contract, not an afterthought:
+
+- **Title** — Conventional Commits (`<type>(<scope>): <subject>`), same rules
+  as the commit messages above. Merges squash the PR under this title, so the
+  title *is* the public history.
+- **Type label** — one of `feat`, `fix`, `refactor`, `test`, `docs` (alias
+  `documentation`), `chore`, `ci`, `dependencies`. It must match the type in
+  the title.
+- **Assignee** — the author assigns themselves. Explicitly add reviewers.
+- **Body** — English, filled from the pull request template.
+
+No milestone or phase/part labels are used: the MVP is tracked as a whole and
+execution slices are an internal concern, not durable repository metadata.
+
+Maintainers apply the same metadata when merging. When in doubt, copy the
+labels of any recent merged PR.
+
 ## Development workflow
 
 Run all checks before pushing:

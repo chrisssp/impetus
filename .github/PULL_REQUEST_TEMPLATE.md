@@ -30,6 +30,7 @@ assignees: []
 - [ ] I ran `dart format --output=none --set-exit-if-changed lib test`.
 - [ ] I updated documentation if needed.
 - [ ] My commit messages follow the Conventional Commits convention.
+- [ ] I set the PR metadata: type label and myself as assignee.
 
 ## Screenshots
 
