@@ -41,10 +41,12 @@ class AlphaBboxDetector {
         var offset = y * image.width * 4 + 3;
         for (var x = 0; x < image.width; x++, offset += 4) {
           if (bytes[offset] > 128) {
-            if (!found) {
+            found = true;
+            if (x < minX) {
               minX = x;
+            }
+            if (y < minY) {
               minY = y;
-              found = true;
             }
             if (x > maxX) {
               maxX = x;
