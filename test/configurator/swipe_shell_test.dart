@@ -72,14 +72,20 @@ Future<void> _flingLeft(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-/// Swipes the immersive preview surface horizontally (RE-CF-3, D17).
+/// Swipes the immersive preview surface horizontally (RE-CF-3, D17) and lets
+/// the debounced preview re-render land.
+///
+/// The 100ms preview debounce ([kPreviewDebounce]) is a plain Timer scheduled
+/// from the provider listener that runs on the microtask queue after the
+/// notifier mutation. The first pump flushes that microtask so the timer is
+/// registered, the second advances past the debounce so the cycle reaches the
+/// preview (RE-CF-3), and the last renders the re-render — leaving no pending
+/// timer behind.
 Future<void> _swipePreview(WidgetTester tester, Offset offset) async {
-  await tester.fling(
-    find.byKey(const Key('immersive_preview')),
-    offset,
-    1000,
-  );
-  await tester.pumpAndSettle();
+  await tester.fling(find.byKey(const Key('immersive_preview')), offset, 1000);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 150));
+  await tester.pump();
 }
 
 /// Raises the sheet-open gate on the view state (design D19).
@@ -154,15 +160,19 @@ void main() {
       'item (RE-CF-3, D17/D18)', (tester) async {
     final harness = await _pumpShell(tester);
 
-    expect(harness.container.read(configuratorStateProvider).selectedIds[0],
-        isNull);
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      isNull,
+    );
     expect(harness.renderer.calls, 1);
 
     await _swipePreview(tester, const Offset(-400, 0));
 
     // Background pool: bg_navy -> bg_midnight -> bg_forest (D18: left = next).
-    expect(harness.container.read(configuratorStateProvider).selectedIds[0],
-        'bg_midnight');
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      'bg_midnight',
+    );
     // Item cycling changes the selection, so the preview re-renders (RE-CF-3).
     expect(harness.renderer.calls, 2);
   });
@@ -174,8 +184,10 @@ void main() {
     await _swipePreview(tester, const Offset(400, 0));
 
     // An unselected layer resolves to pool index 0; -1 wraps to the last item.
-    expect(harness.container.read(configuratorStateProvider).selectedIds[0],
-        'bg_forest');
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      'bg_forest',
+    );
   });
 
   testWidgets('swipe left wraps from the last pool item back to the first '
@@ -185,14 +197,18 @@ void main() {
     for (var i = 0; i < 2; i++) {
       await _swipePreview(tester, const Offset(-400, 0));
     }
-    expect(harness.container.read(configuratorStateProvider).selectedIds[0],
-        'bg_forest');
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      'bg_forest',
+    );
 
     // The third next-swipe wraps modulo the pool length.
     await _swipePreview(tester, const Offset(-400, 0));
 
-    expect(harness.container.read(configuratorStateProvider).selectedIds[0],
-        'bg_navy');
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      'bg_navy',
+    );
   });
 
   testWidgets('preview swipe cycles the active layer, not layer zero '
@@ -201,15 +217,21 @@ void main() {
 
     // Navigate the shell to the phrase layer (index 1) first.
     await _flingLeft(tester);
-    expect(harness.container.read(configuratorStateProvider).activeLayerIndex,
-        1);
+    expect(
+      harness.container.read(configuratorStateProvider).activeLayerIndex,
+      1,
+    );
 
     await _swipePreview(tester, const Offset(-400, 0));
 
-    expect(harness.container.read(configuratorStateProvider).selectedIds[1],
-        'ph_consistency');
-    expect(harness.container.read(configuratorStateProvider).selectedIds[0],
-        isNull);
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[1],
+      'ph_consistency',
+    );
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      isNull,
+    );
   });
 
   testWidgets('swipe does not fire while the sheet-open gate is up '
@@ -220,8 +242,10 @@ void main() {
 
     await _swipePreview(tester, const Offset(-400, 0));
 
-    expect(harness.container.read(configuratorStateProvider).selectedIds[0],
-        isNull);
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      isNull,
+    );
     expect(harness.renderer.calls, 1);
   });
 
@@ -240,8 +264,10 @@ void main() {
     final callsBefore = harness.renderer.calls;
     await _swipePreview(tester, const Offset(-400, 0));
 
-    expect(harness.container.read(configuratorStateProvider).selectedIds[0],
-        isNull);
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      isNull,
+    );
     expect(harness.renderer.calls, callsBefore);
   });
 }
