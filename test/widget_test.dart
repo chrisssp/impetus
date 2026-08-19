@@ -5,8 +5,9 @@
 //   1. ProviderScope is an ancestor of MaterialApp.
 //   2. The home is the configurator under a Scaffold with an AppBar titled
 //      'Impetus' — not the Part 0 placeholder title (RE-AS-2).
-//   3. No FloatingActionButton: the wallpaper spike moved to a dev-only
-//      AppBar action that is one-shot (RE-AS-3).
+//   3. No placeholder FAB: the wallpaper spike moved to a dev-only AppBar
+//      action that is one-shot (RE-AS-3). The configurator's controls FAB
+//      (RE-CF-12, D27) is the only FloatingActionButton in the tree.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -49,8 +50,11 @@ void main() {
       findsOneWidget,
     );
 
-    // RE-AS-3: no primary-action FAB; the spike lives in the AppBar actions.
-    expect(find.byType(FloatingActionButton), findsNothing);
+    // RE-AS-3: no placeholder primary-action FAB; the spike lives in the
+    // AppBar actions. The configurator's controls FAB (RE-CF-12, D27) is the
+    // only FloatingActionButton in the tree.
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.byKey(const ValueKey('controls_fab')), findsOneWidget);
     expect(
       find.descendant(of: appBar, matching: find.byIcon(Icons.wallpaper)),
       findsOneWidget,
