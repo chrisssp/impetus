@@ -11,15 +11,18 @@
 //     ProviderContainer, changes the canvas derived by previewConfigProvider
 //     (D16/D25).
 
-import 'dart:ui' show Size;
-
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:impetus/configurator/blocking.dart';
 import 'package:impetus/configurator/catalog.dart';
 import 'package:impetus/configurator/configurator_state.dart';
+import 'package:impetus/configurator/configurator_view.dart';
 import 'package:impetus/configurator/layer_model.dart';
+import 'package:impetus/configurator/placeholder_assets.dart';
 import 'package:impetus/configurator/preview_pipeline.dart';
 import 'package:impetus/configurator/preview_provider.dart';
+import 'package:impetus/models/render_config.dart';
 
 /// The pinned default canvas (design D11/D16).
 const Size _defaultCanvas = Size(540, 960);
@@ -73,6 +76,70 @@ void main() {
       );
       addTearDown(container.dispose);
       expect(container.read(previewConfigProvider).size, const Size(360, 640));
+    });
+  });
+
+  group('tree-level device-size override (RE-CF-9, D16)', () {
+    /// Pumps the immersive shell on a [device]-sized test surface and returns
+    /// the RenderConfigs the (recording fake) renderer was asked to draw.
+    Future<List<RenderConfig>> pumpOnDevice(
+      WidgetTester tester,
+      Size device,
+    ) async {
+      tester.view.physicalSize = device;
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      final rendered = <RenderConfig>[];
+      final container = ProviderContainer(
+        overrides: [
+          previewRenderProvider.overrideWithValue((config) async {
+            rendered.add(config);
+            return PreviewResult(
+              png: kAlphaPngBytes,
+              blocks: const LayerBlockStatuses.empty(),
+            );
+          }),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const MaterialApp(home: Scaffold(body: ConfiguratorView())),
+        ),
+      );
+      await tester.pump();
+      return rendered;
+    }
+
+    testWidgets('the rendered canvas follows the device size at 360x640', (
+      tester,
+    ) async {
+      final rendered = await pumpOnDevice(tester, const Size(360, 640));
+
+      expect(
+        rendered.single.size,
+        const Size(360, 640),
+        reason:
+            'the preview pipeline must render at the device canvas, not '
+            'the pinned 540x960 default (RE-CF-9)',
+      );
+    });
+
+    testWidgets('the rendered canvas follows the device size at 1080x1920', (
+      tester,
+    ) async {
+      final rendered = await pumpOnDevice(tester, const Size(1080, 1920));
+
+      expect(
+        rendered.single.size,
+        const Size(1080, 1920),
+        reason:
+            'a different device aspect ratio must re-derive the '
+            'RenderConfig (RE-CF-9)',
+      );
     });
   });
 }

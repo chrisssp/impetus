@@ -1,30 +1,21 @@
-// ClockSelector / ClockControls — the four ClockPosition presets (design D2,
-// RE-CF-8, tasks 6.1/6.3 + 4.6).
+// ClockControls — the four ClockPosition presets (design D2, RE-CF-8,
+// tasks 6.1/6.3 + 4.6).
 //
 // A wrap of ChoiceChips, one per ClockPosition; the active preset is marked
 // selected. Tapping a preset routes into
 // ConfiguratorNotifier.setClockPosition, which only changes the render clock
 // placement (RE-CF-8). The selector is a small ConsumerWidget that watches a
-// narrow slice of state, so preset edits never rebuild the swipe shell.
+// narrow slice of state, so preset edits never rebuild the immersive shell.
 //
-// The body lives in [ClockControls] so the immersive bottom sheet reuses the
-// same presets and stable keys (D20, tasks 4.1-4.7); [ClockSelector] keeps the
-// swipe shell's bottom slot until the shell is removed in a later slice.
+// The controls live in [ClockControls] inside the immersive bottom sheet
+// (D20, tasks 4.1-4.7). The old swipe-shell [ClockSelector] bottom-bar wrapper
+// was removed in slice 6: the sheet is now the single control surface
+// (RE-CF-12).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:impetus/configurator/configurator_notifier.dart';
 import 'package:impetus/models/render_config.dart';
-
-/// Preset chooser for the clock strip placement.
-class ClockSelector extends StatelessWidget {
-  const ClockSelector({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const ClockControls();
-  }
-}
 
 /// The four clock placement presets (RE-CF-8).
 class ClockControls extends ConsumerWidget {

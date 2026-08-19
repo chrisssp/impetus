@@ -4,9 +4,8 @@
 // The shell runs the real previewProvider so the debounce wiring is exercised,
 // but previewRenderProvider is replaced with a counting fake renderer: the real
 // engine futures never complete under the widget-test fake async zone, and the
-// counter proves the preview does NOT re-render while swiping (RE-CF-3, D12 —
-// activeLayerIndex is excluded from previewConfigProvider, so navigating the
-// pages never changes the rendered config).
+// counter proves the preview does NOT re-render while the active layer changes
+// (RE-CF-3, D12 — activeLayerIndex is excluded from previewConfigProvider).
 //
 // Slice 3 adds the immersive-preview swipe surface: a horizontal drag on
 // Key('immersive_preview') cycles the ACTIVE layer's item (left = next,
@@ -17,6 +16,11 @@
 // Slice 4 replaces the state-driven gate helper with REAL FAB taps: tapping
 // Key('controls_fab') opens the immersive bottom sheet and raises the gate;
 // dismissing the sheet (scrim tap) lowers it again, so the swipe fires again.
+//
+// Slice 6 removes the PageView shell: the active layer changes through the
+// sheet's SegmentedButton (RE-CF-3), and the swipe targets whatever layer is
+// active — the shell-page navigation tests were migrated to sheet-based
+// selection.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -70,12 +74,6 @@ Future<_Harness> _pumpShell(WidgetTester tester) async {
   return _Harness(renderer, container);
 }
 
-/// Flings the shell one page to the left and settles the scroll animation.
-Future<void> _flingLeft(WidgetTester tester) async {
-  await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
-  await tester.pumpAndSettle();
-}
-
 /// Swipes the immersive preview surface horizontally (RE-CF-3, D17) and lets
 /// the debounced preview re-render land.
 ///
@@ -85,12 +83,28 @@ Future<void> _flingLeft(WidgetTester tester) async {
 /// registered, the second advances past the debounce so the cycle reaches the
 /// preview (RE-CF-3), and the last renders the re-render — leaving no pending
 /// timer behind.
-Future<void> _swipePreview(WidgetTester tester, Offset offset) async {
-  await tester.fling(find.byKey(const Key('immersive_preview')), offset, 1000);
+Future<void> _swipePreview(
+  WidgetTester tester,
+  Offset offset, {
+  bool warnIfMissed = true,
+}) async {
+  await tester.fling(
+    find.byKey(const Key('immersive_preview')),
+    offset,
+    1000,
+    warnIfMissed: warnIfMissed,
+  );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 150));
   await tester.pump();
 }
+
+/// Scopes [finder] to the open bottom sheet ([Key('immersive_sheet')]) so
+/// sheet finders never match controls rendered elsewhere in the tree.
+Finder _inSheet(Finder finder) => find.descendant(
+  of: find.byKey(const Key('immersive_sheet')),
+  matching: finder,
+);
 
 /// Opens the immersive bottom sheet with a real FAB tap and settles the
 /// sheet animation (RE-CF-12, D27). The FAB tap is the real user path that
@@ -110,60 +124,31 @@ Future<void> _dismissSheet(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('swiping advances the active layer via the provider (RE-CF-3)', (
-    tester,
-  ) async {
-    final harness = await _pumpShell(tester);
-
-    expect(
-      harness.container.read(configuratorStateProvider).activeLayerIndex,
-      0,
-    );
-    expect(harness.renderer.calls, 1);
-
-    await _flingLeft(tester);
-
-    expect(
-      harness.container.read(configuratorStateProvider).activeLayerIndex,
-      1,
-    );
-    expect(harness.renderer.calls, 1);
-  });
-
-  testWidgets('traversing all four pages never re-renders the preview '
+  testWidgets('switching layers from the sheet never re-renders the preview '
       '(RE-CF-3, D12)', (tester) async {
     final harness = await _pumpShell(tester);
 
-    for (var expected = 1; expected < LayerType.values.length; expected++) {
-      await _flingLeft(tester);
-      expect(
-        harness.container.read(configuratorStateProvider).activeLayerIndex,
-        expected,
-      );
-    }
-
     expect(harness.renderer.calls, 1);
-  });
 
-  testWidgets('the shell does not wrap at the font edge (clamp physics)', (
-    tester,
-  ) async {
-    final harness = await _pumpShell(tester);
+    // The active layer changes through the sheet's SegmentedButton (RE-CF-3);
+    // activeLayerIndex is not render-relevant, so no re-render fires (D12).
+    await _openSheet(tester);
+    await tester.tap(_inSheet(find.text(LayerType.character.name)));
+    await tester.pumpAndSettle();
+    expect(
+      harness.container.read(configuratorStateProvider).activeLayerIndex,
+      2,
+    );
 
-    for (var i = 0; i < LayerType.values.length - 1; i++) {
-      await _flingLeft(tester);
-    }
+    await tester.tap(_inSheet(find.text(LayerType.font.name)));
+    await tester.pumpAndSettle();
     expect(
       harness.container.read(configuratorStateProvider).activeLayerIndex,
       3,
     );
 
-    await _flingLeft(tester);
+    await _dismissSheet(tester);
 
-    expect(
-      harness.container.read(configuratorStateProvider).activeLayerIndex,
-      3,
-    );
     expect(harness.renderer.calls, 1);
   });
 
@@ -226,8 +211,12 @@ void main() {
       '(D17/D18)', (tester) async {
     final harness = await _pumpShell(tester);
 
-    // Navigate the shell to the phrase layer (index 1) first.
-    await _flingLeft(tester);
+    // Select the phrase layer from the sheet (RE-CF-3: the active layer
+    // changes in the sheet, not by swipe), then dismiss it.
+    await _openSheet(tester);
+    await tester.tap(_inSheet(find.text(LayerType.phrase.name)));
+    await tester.pumpAndSettle();
+    await _dismissSheet(tester);
     expect(
       harness.container.read(configuratorStateProvider).activeLayerIndex,
       1,
@@ -251,7 +240,9 @@ void main() {
 
     await _openSheet(tester);
 
-    await _swipePreview(tester, const Offset(-400, 0));
+    // The sheet covers the preview, so the fling's center cannot hit it — the
+    // "miss" is the point: the gate must keep the covered preview inert (D19).
+    await _swipePreview(tester, const Offset(-400, 0), warnIfMissed: false);
 
     expect(
       harness.container.read(configuratorStateProvider).selectedIds[0],
@@ -286,9 +277,17 @@ void main() {
     )) {
       notifier.removeFromPool(0, item.id);
     }
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(kPreviewDebounce);
+    await tester.pump();
     expect(harness.container.read(configuratorStateProvider).pools[0], isEmpty);
 
+    // The removal fallback re-rendered the preview (the config changed), so
+    // the snapshot below is taken AFTER that render landed: the assertion is
+    // that the SWIPE itself is a no-op. pumpAndSettle cannot be used here —
+    // nothing in the tree watches configuratorStateProvider, so no frame is
+    // scheduled and the debounce timer would stay pending until the swipe's
+    // pumps fire it, corrupting the snapshot (slice 6: shell pages removed).
     final callsBefore = harness.renderer.calls;
     await _swipePreview(tester, const Offset(-400, 0));
 

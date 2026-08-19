@@ -7,6 +7,7 @@
 
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:ui' show Size;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,8 +41,9 @@ PreviewResult _result(String tag, {LayerBlockStatuses? blocks}) {
 
 /// A provider container whose renderer is a recording fake.
 (ProviderContainer container, List<RenderConfig> renderedConfigs) _container(
-  Future<PreviewResult> Function(RenderConfig config) render,
-) {
+  Future<PreviewResult> Function(RenderConfig config) render, {
+  List<Override> overrides = const [],
+}) {
   final renderedConfigs = <RenderConfig>[];
   final container = ProviderContainer(
     overrides: [
@@ -49,6 +51,7 @@ PreviewResult _result(String tag, {LayerBlockStatuses? blocks}) {
         renderedConfigs.add(config);
         return render(config);
       }),
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);
@@ -176,5 +179,31 @@ void main() {
       hasLength(1),
       reason: 'activeLayerIndex is not render-relevant (D12)',
     );
+  });
+
+  testWidgets('a preview size change re-derives the RenderConfig through the '
+      'debounce (RE-CF-9, D16)', (tester) async {
+    final size = StateProvider<Size>((ref) => const Size(540, 960));
+    final (container, renderedConfigs) = _container(
+      (_) async => _result('size'),
+      overrides: [previewSizeProvider.overrideWith((ref) => ref.watch(size))],
+    );
+
+    container.read(previewProvider);
+    await tester.pump(kPreviewDebounce);
+
+    container.read(size.notifier).state = const Size(360, 640);
+    await tester.pump(kPreviewDebounce);
+    await tester.pump();
+
+    expect(
+      renderedConfigs,
+      hasLength(2),
+      reason:
+          'a size change must re-derive the RenderConfig through the '
+          'debounced pipeline, not the pinned 540x960 default (D16)',
+    );
+    expect(renderedConfigs.first.size, const Size(540, 960));
+    expect(renderedConfigs.last.size, const Size(360, 640));
   });
 }
