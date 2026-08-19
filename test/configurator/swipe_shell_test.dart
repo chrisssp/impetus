@@ -1,4 +1,5 @@
-// Swipe shell (design D5/D12, RE-CF-3, tasks 6.2/6.6).
+// Swipe shell (design D5/D12, RE-CF-3, tasks 6.2/6.6) + item-cycle swipe
+// gesture (design D17/D18/D19, RE-CF-3, tasks 3.1-3.3).
 //
 // The shell runs the real previewProvider so the debounce wiring is exercised,
 // but previewRenderProvider is replaced with a counting fake renderer: the real
@@ -6,6 +7,12 @@
 // counter proves the preview does NOT re-render while swiping (RE-CF-3, D12 —
 // activeLayerIndex is excluded from previewConfigProvider, so navigating the
 // pages never changes the rendered config).
+//
+// Slice 3 adds the immersive-preview swipe surface: a horizontal drag on
+// Key('immersive_preview') cycles the ACTIVE layer's item (left = next,
+// right = previous, D18), wraps at the pool edges, and is disabled while the
+// sheet-open gate is up (D19). Item cycling DOES change the selection, so the
+// counter also proves the preview re-renders on every cycle (RE-CF-3).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -65,6 +72,32 @@ Future<void> _flingLeft(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
+/// Swipes the immersive preview surface horizontally (RE-CF-3, D17) and lets
+/// the debounced preview re-render land.
+///
+/// The 100ms preview debounce ([kPreviewDebounce]) is a plain Timer scheduled
+/// from the provider listener that runs on the microtask queue after the
+/// notifier mutation. The first pump flushes that microtask so the timer is
+/// registered, the second advances past the debounce so the cycle reaches the
+/// preview (RE-CF-3), and the last renders the re-render — leaving no pending
+/// timer behind.
+Future<void> _swipePreview(WidgetTester tester, Offset offset) async {
+  await tester.fling(find.byKey(const Key('immersive_preview')), offset, 1000);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 150));
+  await tester.pump();
+}
+
+/// Raises the sheet-open gate on the view state (design D19).
+///
+/// The gate is the exact state the bottom sheet toggles; until the FAB exists
+/// (slice 4) the tests drive it through the same method the sheet will call.
+Future<void> _openSheetGate(WidgetTester tester) async {
+  final state = tester.state(find.byType(ConfiguratorView)) as dynamic;
+  state.setSheetOpen(true);
+  await tester.pump();
+}
+
 void main() {
   testWidgets('swiping advances the active layer via the provider (RE-CF-3)', (
     tester,
@@ -121,5 +154,120 @@ void main() {
       3,
     );
     expect(harness.renderer.calls, 1);
+  });
+
+  testWidgets('swipe left on the preview cycles the active layer to the next '
+      'item (RE-CF-3, D17/D18)', (tester) async {
+    final harness = await _pumpShell(tester);
+
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      isNull,
+    );
+    expect(harness.renderer.calls, 1);
+
+    await _swipePreview(tester, const Offset(-400, 0));
+
+    // Background pool: bg_navy -> bg_midnight -> bg_forest (D18: left = next).
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      'bg_midnight',
+    );
+    // Item cycling changes the selection, so the preview re-renders (RE-CF-3).
+    expect(harness.renderer.calls, 2);
+  });
+
+  testWidgets('swipe right on the preview cycles the active layer to the '
+      'previous item (RE-CF-3, D17/D18)', (tester) async {
+    final harness = await _pumpShell(tester);
+
+    await _swipePreview(tester, const Offset(400, 0));
+
+    // An unselected layer resolves to pool index 0; -1 wraps to the last item.
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      'bg_forest',
+    );
+  });
+
+  testWidgets('swipe left wraps from the last pool item back to the first '
+      '(RE-CF-3)', (tester) async {
+    final harness = await _pumpShell(tester);
+
+    for (var i = 0; i < 2; i++) {
+      await _swipePreview(tester, const Offset(-400, 0));
+    }
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      'bg_forest',
+    );
+
+    // The third next-swipe wraps modulo the pool length.
+    await _swipePreview(tester, const Offset(-400, 0));
+
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      'bg_navy',
+    );
+  });
+
+  testWidgets('preview swipe cycles the active layer, not layer zero '
+      '(D17/D18)', (tester) async {
+    final harness = await _pumpShell(tester);
+
+    // Navigate the shell to the phrase layer (index 1) first.
+    await _flingLeft(tester);
+    expect(
+      harness.container.read(configuratorStateProvider).activeLayerIndex,
+      1,
+    );
+
+    await _swipePreview(tester, const Offset(-400, 0));
+
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[1],
+      'ph_consistency',
+    );
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      isNull,
+    );
+  });
+
+  testWidgets('swipe does not fire while the sheet-open gate is up '
+      '(RE-CF-3, D19)', (tester) async {
+    final harness = await _pumpShell(tester);
+
+    await _openSheetGate(tester);
+
+    await _swipePreview(tester, const Offset(-400, 0));
+
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      isNull,
+    );
+    expect(harness.renderer.calls, 1);
+  });
+
+  testWidgets('swipe on an empty active pool is a no-op and never crashes '
+      '(RE-CF-3)', (tester) async {
+    final harness = await _pumpShell(tester);
+    final notifier = harness.container.read(configuratorStateProvider.notifier);
+    for (final item in List<LayerItem>.from(
+      harness.container.read(configuratorStateProvider).pools[0],
+    )) {
+      notifier.removeFromPool(0, item.id);
+    }
+    await tester.pumpAndSettle();
+    expect(harness.container.read(configuratorStateProvider).pools[0], isEmpty);
+
+    final callsBefore = harness.renderer.calls;
+    await _swipePreview(tester, const Offset(-400, 0));
+
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      isNull,
+    );
+    expect(harness.renderer.calls, callsBefore);
   });
 }
