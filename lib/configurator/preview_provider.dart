@@ -1,6 +1,11 @@
 // Preview provider — debounced, latest-wins rendering of the configurator
 // state (design D12, RE-CF-9, tasks 4.2/4.4).
 //
+// The canvas is device-adaptive: previewSizeProvider supplies the render size
+// (defaulting to the pinned 540x960 used by tests and goldens, design D16/D25)
+// and previewConfigProvider watches it together with the render-relevant slice
+// of the state, so a size change re-derives the RenderConfig (D16).
+//
 // previewConfigProvider exposes only the render-relevant slice of the state
 // (pools, selections, clock position). Layer navigation, mode toggles and the
 // frozen flags never change the rendered output, so they are excluded: an
@@ -12,6 +17,7 @@
 // the newest config (D12).
 
 import 'dart:async';
+import 'dart:ui' show Size;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:impetus/configurator/blocking.dart';
@@ -23,6 +29,13 @@ import 'package:impetus/models/render_config.dart';
 /// Debounce window for preview re-renders (design D12).
 const Duration kPreviewDebounce = Duration(milliseconds: 100);
 
+/// The canvas the preview renders at (design D16, RE-CF-9).
+///
+/// Defaults to the pinned 540x960 portrait canvas so tests and goldens stay
+/// deterministic (D25); the immersive shell overrides it with the device's
+/// available body size.
+final previewSizeProvider = Provider<Size>((ref) => const Size(540, 960));
+
 /// The render-relevant slice of the configurator state, mapped to the engine's
 /// [RenderConfig].
 ///
@@ -31,6 +44,7 @@ const Duration kPreviewDebounce = Duration(milliseconds: 100);
 /// would break this: they compare by identity, so every state change would
 /// look different even when the render output is identical.
 final previewConfigProvider = Provider<RenderConfig>((ref) {
+  final size = ref.watch(previewSizeProvider);
   final state = ref.watch(
     configuratorStateProvider.select(
       (s) => ConfiguratorState(
@@ -40,7 +54,7 @@ final previewConfigProvider = Provider<RenderConfig>((ref) {
       ),
     ),
   );
-  return buildRenderConfig(state);
+  return buildRenderConfig(state, canvasSize: size);
 });
 
 /// The render entry point, injectable so tests can substitute a fake renderer

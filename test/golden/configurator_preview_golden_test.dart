@@ -16,6 +16,8 @@
 // The baselines are generated with `flutter test --update-goldens` and then
 // must pass without the flag on CI and locally.
 
+import 'dart:ui' show Size;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:impetus/configurator/catalog.dart';
 import 'package:impetus/configurator/configurator_state.dart';
@@ -23,6 +25,9 @@ import 'package:impetus/configurator/layer_model.dart';
 import 'package:impetus/configurator/preview_pipeline.dart';
 
 import '../helpers/load_roboto.dart';
+
+/// The pinned 540x960 canvas the goldens render at (design D25).
+const Size _canvas = Size(540, 960);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +43,9 @@ void main() {
   }
 
   test('default state renders identically to the golden baseline', () async {
-    final result = await renderPreview(buildRenderConfig(state()));
+    final result = await renderPreview(
+      buildRenderConfig(state(), canvasSize: _canvas),
+    );
 
     await expectLater(
       result.png,
@@ -59,6 +66,7 @@ void main() {
               kFontCatalog,
             ],
           ),
+          canvasSize: _canvas,
         ),
       );
 
@@ -82,6 +90,7 @@ void main() {
               kFontCatalog,
             ],
           ),
+          canvasSize: _canvas,
         ),
       );
 

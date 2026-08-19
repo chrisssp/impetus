@@ -72,10 +72,7 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      expect(
-        container.read(previewConfigProvider).size,
-        const Size(360, 640),
-      );
+      expect(container.read(previewConfigProvider).size, const Size(360, 640));
     });
   });
 }
