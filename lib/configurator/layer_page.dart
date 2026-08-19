@@ -1,0 +1,142 @@
+// LayerPage — the interaction surface for one stack layer (design D3/D9/D10,
+// RE-CF-4/5/7, tasks 6.1/6.5).
+//
+// Each swipe-shell page shows its layer's mode toggle (RE-CF-4), its catalog of
+// addable placeholders and its pool of removable, selectable items (RE-CF-5).
+// A blocked layer — as reported by blockStatusProvider from the latest render
+// (D9/D10) — is attenuated behind a suggestion banner; the attenuation applies
+// to the content, never the banner, so the guidance stays readable (RE-CF-7).
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:impetus/configurator/catalog.dart';
+import 'package:impetus/configurator/configurator_notifier.dart';
+import 'package:impetus/configurator/layer_model.dart';
+import 'package:impetus/configurator/preview_provider.dart';
+
+/// The swipe-shell page for [layerIndex] (a fixed index into [LayerType.values],
+/// RE-CF-2).
+class LayerPage extends ConsumerWidget {
+  const LayerPage({super.key, required this.layerIndex});
+
+  final int layerIndex;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(configuratorStateProvider);
+    final status = ref.watch(blockStatusProvider).entries[layerIndex];
+    final notifier = ref.read(configuratorStateProvider.notifier);
+
+    final layer = LayerType.values[layerIndex];
+    final pool = state.pools[layerIndex];
+    final selectedId = state.selectedIds[layerIndex];
+    final fixed = state.modes[layerIndex] == LayerMode.fixed;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (status.blocked)
+          _BlockedBanner(index: layerIndex, suggestion: status.suggestion!),
+        Expanded(
+          child: Opacity(
+            key: ValueKey('layer_attenuation_$layerIndex'),
+            opacity: status.blocked ? 0.5 : 1.0,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text(
+                  layer.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    key: ValueKey('mode_toggle_$layerIndex'),
+                    onPressed: () => notifier.toggleMode(layerIndex),
+                    icon: Icon(fixed ? Icons.lock : Icons.autorenew),
+                    label: Text(fixed ? 'Mode: Fixed' : 'Mode: Dynamic'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text('Catalog', style: Theme.of(context).textTheme.labelLarge),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    for (final item in _catalogFor(layer))
+                      ActionChip(
+                        key: ValueKey('catalog_add_${item.id}'),
+                        label: Text(item.label),
+                        onPressed: () => notifier.addToPool(layerIndex, item),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text('Pool', style: Theme.of(context).textTheme.labelLarge),
+                for (final item in pool)
+                  ListTile(
+                    key: ValueKey('pool_item_${item.id}'),
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      selectedId == item.id
+                          ? Icons.check_circle
+                          : Icons.radio_button_unchecked,
+                    ),
+                    title: Text(item.label),
+                    onTap: () => notifier.selectItem(layerIndex, item.id),
+                    trailing: IconButton(
+                      key: ValueKey('pool_remove_${item.id}'),
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () =>
+                          notifier.removeFromPool(layerIndex, item.id),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The placeholder catalog shown for [layer] (design D3).
+List<LayerItem> _catalogFor(LayerType layer) {
+  switch (layer) {
+    case LayerType.background:
+      return kBackgroundCatalog;
+    case LayerType.phrase:
+      return kPhraseCatalog;
+    case LayerType.character:
+      return kCharacterCatalog;
+    case LayerType.font:
+      return kFontCatalog;
+  }
+}
+
+/// The suggestion banner shown above a blocked layer (RE-CF-7, D9/D10).
+class _BlockedBanner extends StatelessWidget {
+  const _BlockedBanner({required this.index, required this.suggestion});
+
+  final int index;
+  final String suggestion;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: ValueKey('blocked_banner_$index'),
+      color: scheme.errorContainer,
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: scheme.onErrorContainer),
+          const SizedBox(width: 8),
+          Expanded(child: Text(suggestion)),
+        ],
+      ),
+    );
+  }
+}
