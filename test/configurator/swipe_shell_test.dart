@@ -13,6 +13,10 @@
 // right = previous, D18), wraps at the pool edges, and is disabled while the
 // sheet-open gate is up (D19). Item cycling DOES change the selection, so the
 // counter also proves the preview re-renders on every cycle (RE-CF-3).
+//
+// Slice 4 replaces the state-driven gate helper with REAL FAB taps: tapping
+// Key('controls_fab') opens the immersive bottom sheet and raises the gate;
+// dismissing the sheet (scrim tap) lowers it again, so the swipe fires again.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -88,14 +92,21 @@ Future<void> _swipePreview(WidgetTester tester, Offset offset) async {
   await tester.pump();
 }
 
-/// Raises the sheet-open gate on the view state (design D19).
-///
-/// The gate is the exact state the bottom sheet toggles; until the FAB exists
-/// (slice 4) the tests drive it through the same method the sheet will call.
-Future<void> _openSheetGate(WidgetTester tester) async {
-  final state = tester.state(find.byType(ConfiguratorView)) as dynamic;
-  state.setSheetOpen(true);
-  await tester.pump();
+/// Opens the immersive bottom sheet with a real FAB tap and settles the
+/// sheet animation (RE-CF-12, D27). The FAB tap is the real user path that
+/// raises the sheet-open gate (D19).
+Future<void> _openSheet(WidgetTester tester) async {
+  await tester.tap(find.byKey(const ValueKey('controls_fab')));
+  await tester.pumpAndSettle();
+  expect(find.byKey(const Key('immersive_sheet')), findsOneWidget);
+}
+
+/// Dismisses the open sheet by tapping the modal barrier (scrim) and settles
+/// the pop animation, lowering the sheet-open gate again (RE-CF-12, D19).
+Future<void> _dismissSheet(WidgetTester tester) async {
+  await tester.tapAt(const Offset(400, 40));
+  await tester.pumpAndSettle();
+  expect(find.byKey(const Key('immersive_sheet')), findsNothing);
 }
 
 void main() {
@@ -234,11 +245,11 @@ void main() {
     );
   });
 
-  testWidgets('swipe does not fire while the sheet-open gate is up '
+  testWidgets('swipe does not fire while the bottom sheet is open '
       '(RE-CF-3, D19)', (tester) async {
     final harness = await _pumpShell(tester);
 
-    await _openSheetGate(tester);
+    await _openSheet(tester);
 
     await _swipePreview(tester, const Offset(-400, 0));
 
@@ -247,6 +258,23 @@ void main() {
       isNull,
     );
     expect(harness.renderer.calls, 1);
+  });
+
+  testWidgets('swipe fires again after the sheet is dismissed '
+      '(RE-CF-3, D19)', (tester) async {
+    final harness = await _pumpShell(tester);
+
+    await _openSheet(tester);
+    await _dismissSheet(tester);
+
+    await _swipePreview(tester, const Offset(-400, 0));
+
+    // Left swipe on the (now ungated) preview advances the background item.
+    expect(
+      harness.container.read(configuratorStateProvider).selectedIds[0],
+      'bg_midnight',
+    );
+    expect(harness.renderer.calls, 2);
   });
 
   testWidgets('swipe on an empty active pool is a no-op and never crashes '
