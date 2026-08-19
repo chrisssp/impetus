@@ -1,26 +1,13 @@
-# App Shell Specification
+# Delta for app-shell
 
-## Purpose
+## MODIFIED Requirements
 
-Riverpod app shell: `ProviderScope` wrapping, a `MaterialApp` whose home hosts the layered swipe configurator (`ConfiguratorView`), and a `kDebugMode`-only one-shot spike trigger for the wallpaper bridge.
-
-## Requirements
-
-### Requirement: ProviderScope Wrapping
-
-The system SHALL wrap the Flutter app with Riverpod's `ProviderScope` in `main.dart`.
-
-#### Scenario: App launches with ProviderScope
-
-- GIVEN `main.dart` is the entry point
-- WHEN `runApp()` is called
-- THEN the widget tree root is `ProviderScope`
-- AND `MaterialApp` is a child of `ProviderScope`
-
-### Requirement: MaterialApp Hosting Configurator
+### Requirement: MaterialApp Hosting Configurator (RE-AS-2)
 
 The system SHALL provide a `MaterialApp` whose home screen hosts the layered
-swipe configurator as the app's primary surface, replacing the placeholder home.
+swipe configurator as the app's primary surface, replacing the Part 0
+placeholder home.
+(Previously: the home screen showed an identifiable placeholder — the app title.)
 
 #### Scenario: Configurator is the app home
 
@@ -38,10 +25,11 @@ swipe configurator as the app's primary surface, replacing the placeholder home.
   `flutter test --update-goldens`
 - AND the regenerated baseline passes on subsequent runs
 
-### Requirement: Dev-Only Spike Trigger
+### Requirement: Dev-Only Spike Trigger (RE-AS-3)
 
 The system SHALL retain the wallpaper-bridge spike trigger as a developer-only
 entry point, relocated so it is not the primary home-screen action.
+(Previously: the spike trigger was a FloatingActionButton on the home screen.)
 
 #### Scenario: Spike trigger via dev entry
 
@@ -56,10 +44,3 @@ entry point, relocated so it is not the primary home-screen action.
 - WHEN the result is displayed
 - THEN the trigger does not re-run until the app is restarted
 - AND no persistent state is stored from the spike
-
-## Verification
-
-- **ProviderScope**: `flutter test` — widget test asserts ProviderScope is ancestor of MaterialApp
-- **Configurator home**: `flutter test` — widget test asserts the home renders the configurator (four-layer swipe UI) with the AppBar title
-- **Spike trigger**: `flutter test` — widget test activates the dev entry, verifies MethodChannel invocation
-- **One-shot behavior**: `flutter test` — widget test activates twice, second activation shows already-triggered state
