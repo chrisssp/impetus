@@ -1,7 +1,8 @@
 // ConfiguratorView — the swipe shell (design D5, RE-CF-3, tasks 6.2/6.6) plus
-// the item-cycle swipe surface (design D17/D18/D19, RE-CF-3, tasks 3.1-3.3)
-// and the FAB-opened immersive bottom sheet (design D19/D20/D27, RE-CF-12,
-// tasks 4.1-4.7).
+// the item-cycle swipe surface (design D17/D18/D19, RE-CF-3, tasks 3.1-3.3),
+// the FAB-opened immersive bottom sheet (design D19/D20/D27, RE-CF-12,
+// tasks 4.1-4.7) and the blocked-layer suggestion pill (design D22, RE-CF-7,
+// tasks 5.1-5.4).
 //
 // A persistent PreviewPanel sits above a PageView with exactly one fixed page
 // per stack layer ([LayerType.values], RE-CF-2). The PageController uses the
@@ -21,12 +22,19 @@
 // before the sheet animates in and lowered when the modal route pops (drag,
 // scrim tap or back).
 //
+// [BlockedPill] overlays the top of the preview (D22): it shows the first
+// blocked layer's unblocking suggestion in a Chip and ignores pointer events,
+// so it never interferes with the item-cycle swipe (RE-CF-7). Unlike the FAB
+// it is NOT gated on [_sheetOpen] — the modal sheet simply covers it while
+// open, and it must stay mounted (RE-CF-7, slice-5 tests).
+//
 // The view reads the notifier once instead of watching state, so the page
 // controller and the current page survive every state change (mode toggles,
 // pool edits, freezes) without being recreated.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:impetus/configurator/blocked_pill.dart';
 import 'package:impetus/configurator/clock_selector.dart';
 import 'package:impetus/configurator/configurator_notifier.dart';
 import 'package:impetus/configurator/immersive_bottom_sheet.dart';
@@ -130,6 +138,10 @@ class _ConfiguratorViewState extends ConsumerState<ConfiguratorView> {
                   child: const Icon(Icons.tune),
                 ),
               ),
+            // The blocked-layer suggestion pill (D22, RE-CF-7). Always
+            // mounted: it overlays the preview and never intercepts pointer
+            // events, so the item-cycle swipe passes through it.
+            const BlockedPill(),
           ],
         ),
         Expanded(

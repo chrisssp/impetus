@@ -1,23 +1,22 @@
-// LayerPage — the interaction surface for one stack layer (design D3/D9/D10,
-// RE-CF-4/5/7, tasks 6.1/6.5).
+// LayerPage — the interaction surface for one stack layer (design D3/D9,
+// RE-CF-4/5, tasks 6.1/6.5).
 //
 // Each swipe-shell page shows its layer's mode toggle (RE-CF-4), its catalog of
 // addable placeholders and its pool of removable, selectable items (RE-CF-5).
-// A blocked layer — as reported by blockStatusProvider from the latest render
-// (D9/D10) — is attenuated behind a suggestion banner; the attenuation applies
-// to the content, never the banner, so the guidance stays readable (RE-CF-7).
 //
 // The toggle + catalog + pool body is extracted into [LayerControls] so the
 // immersive bottom sheet reuses the exact same controls and stable keys
 // (D20, tasks 4.1-4.7); [LayerPage] keeps only the shell-specific chrome
-// (banner, attenuation, title) until the shell is removed in a later slice.
+// (the layer title) until the shell is removed in a later slice. Blocked-layer
+// presentation no longer lives here: the old _BlockedBanner + Opacity
+// attenuation was replaced by the immersive [BlockedPill] overlay on the
+// preview (D22, RE-CF-7, tasks 5.1-5.4).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:impetus/configurator/catalog.dart';
 import 'package:impetus/configurator/configurator_notifier.dart';
 import 'package:impetus/configurator/layer_model.dart';
-import 'package:impetus/configurator/preview_provider.dart';
 
 /// The swipe-shell page for [layerIndex] (a fixed index into [LayerType.values],
 /// RE-CF-2).
@@ -28,29 +27,19 @@ class LayerPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final status = ref.watch(blockStatusProvider).entries[layerIndex];
     final layer = LayerType.values[layerIndex];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (status.blocked)
-          _BlockedBanner(index: layerIndex, suggestion: status.suggestion!),
         Expanded(
-          child: Opacity(
-            key: ValueKey('layer_attenuation_$layerIndex'),
-            opacity: status.blocked ? 0.5 : 1.0,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text(
-                  layer.name,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                LayerControls(layerIndex: layerIndex),
-              ],
-            ),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              Text(layer.name, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              LayerControls(layerIndex: layerIndex),
+            ],
           ),
         ),
       ],
@@ -144,30 +133,5 @@ List<LayerItem> _catalogFor(LayerType layer) {
       return kCharacterCatalog;
     case LayerType.font:
       return kFontCatalog;
-  }
-}
-
-/// The suggestion banner shown above a blocked layer (RE-CF-7, D9/D10).
-class _BlockedBanner extends StatelessWidget {
-  const _BlockedBanner({required this.index, required this.suggestion});
-
-  final int index;
-  final String suggestion;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      key: ValueKey('blocked_banner_$index'),
-      color: scheme.errorContainer,
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Icon(Icons.warning_amber_rounded, color: scheme.onErrorContainer),
-          const SizedBox(width: 8),
-          Expanded(child: Text(suggestion)),
-        ],
-      ),
-    );
   }
 }

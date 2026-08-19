@@ -14,6 +14,14 @@
 // reached through [_inSheet]-scoped finders — the sheet and the swipe shell
 // render the SAME stable keys (mode_toggle_*, shuffle_button, clock_preset_*),
 // so an unscoped finder would match both while the sheet is open.
+//
+// Slice 5 replaces the per-page blocked-layer attenuation with the immersive
+// [BlockedPill] overlay (D22, RE-CF-7): a blocked layer shows its suggestion
+// in a Chip at the top of the preview instead of dimming a whole page. The
+// pill must never crash the preview, must survive sheet open/close, must
+// disappear when the layer unblocks, must show the FIRST blocked layer in
+// stack order, and must not absorb the preview's item-cycle swipe
+// (IgnorePointer passthrough, D22).
 
 import 'dart:async';
 import 'dart:math';
@@ -21,11 +29,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:impetus/configurator/blocked_pill.dart';
 import 'package:impetus/configurator/blocking.dart';
 import 'package:impetus/configurator/configurator_notifier.dart';
 import 'package:impetus/configurator/configurator_view.dart';
 import 'package:impetus/configurator/layer_model.dart';
 import 'package:impetus/configurator/placeholder_assets.dart';
+import 'package:impetus/configurator/preview_panel.dart';
 import 'package:impetus/configurator/preview_pipeline.dart';
 import 'package:impetus/configurator/preview_provider.dart';
 import 'package:impetus/models/render_config.dart';
@@ -58,16 +68,39 @@ class _ScriptedRandom implements Random {
   bool nextBool() => false;
 }
 
+/// A controllable block-status source so tests can flip a layer between
+/// blocked and unblocked and watch the pill appear and disappear (RE-CF-7).
+final _blockStatusController = StateProvider<LayerBlockStatuses>(
+  (ref) => const LayerBlockStatuses.empty(),
+);
+
+/// The statuses used by the blocked-pill tests: the phrase layer (index 1) is
+/// blocked with the no-free-zone suggestion (RE-CF-7, D22).
+LayerBlockStatuses _blockedStatuses() => const LayerBlockStatuses([
+  LayerBlockStatus.clear(),
+  LayerBlockStatus(
+    blocked: true,
+    reason: BlockReason.noFreeZone,
+    suggestion:
+        'No room for the quote — shorten it, swap the character, or change the '
+        'clock position.',
+  ),
+  LayerBlockStatus.clear(),
+  LayerBlockStatus.clear(),
+]);
+
 /// Pumps a [ConfiguratorView] inside an isolated provider scope and returns the
 /// container so tests can read the state (RE-CF-10: isolated pumps).
 Future<ProviderContainer> _pumpView(
   WidgetTester tester, {
   bool scriptedRandom = false,
+  List<Override> overrides = const [],
 }) async {
   final container = ProviderContainer(
     overrides: [
       previewProvider.overrideWith(_FakePreviewNotifier.new),
       if (scriptedRandom) randomProvider.overrideWithValue(_ScriptedRandom()),
+      ...overrides,
     ],
   );
   addTearDown(container.dispose);
@@ -224,46 +257,151 @@ void main() {
     expect(container.read(configuratorStateProvider).selectedIds[0], 'bg_navy');
   });
 
-  testWidgets('a blocked layer is attenuated and shows its suggestion banner '
-      '(RE-CF-7, D9/D10)', (tester) async {
+  testWidgets('a blocked layer shows its suggestion in the pill, not an '
+      'attenuated page (RE-CF-7, D22)', (tester) async {
     final container = await _pumpView(tester);
 
+    expect(find.byKey(kBlockedPillKey), findsNothing);
     expect(find.byKey(const ValueKey('blocked_banner_0')), findsNothing);
-    final page0Opacity = tester.widget<Opacity>(
-      find.byKey(const ValueKey('layer_attenuation_0')),
-    );
-    expect(page0Opacity.opacity, 1.0);
+    expect(find.byKey(const ValueKey('layer_attenuation_0')), findsNothing);
 
     final notifier =
         container.read(previewProvider.notifier) as _FakePreviewNotifier;
     notifier.completeInitial(
-      PreviewResult(
-        png: kAlphaPngBytes,
-        blocks: const LayerBlockStatuses([
-          LayerBlockStatus.clear(),
-          LayerBlockStatus(
-            blocked: true,
-            reason: BlockReason.noFreeZone,
-            suggestion:
-                'No room for the quote — shorten it, swap the character, or '
-                'change the clock position.',
-          ),
-          LayerBlockStatus.clear(),
-          LayerBlockStatus.clear(),
-        ]),
-      ),
+      PreviewResult(png: kAlphaPngBytes, blocks: _blockedStatuses()),
     );
     await tester.pump();
 
-    await _flingLeft(tester);
-
-    expect(container.read(configuratorStateProvider).activeLayerIndex, 1);
-    expect(find.byKey(const ValueKey('blocked_banner_1')), findsOneWidget);
+    expect(find.byKey(kBlockedPillKey), findsOneWidget);
     expect(find.textContaining('No room for the quote'), findsOneWidget);
-    final page1Opacity = tester.widget<Opacity>(
-      find.byKey(const ValueKey('layer_attenuation_1')),
+
+    // The old full-page attenuation and per-page banner surfaces are gone
+    // (D22): the suggestion lives only in the pill over the preview.
+    expect(find.byKey(const ValueKey('blocked_banner_1')), findsNothing);
+    expect(find.byKey(const ValueKey('layer_attenuation_1')), findsNothing);
+  });
+
+  testWidgets('a blocked layer shows the suggestion pill over the preview '
+      'without crashing (RE-CF-7, D22)', (tester) async {
+    await _pumpView(
+      tester,
+      overrides: [blockStatusProvider.overrideWithValue(_blockedStatuses())],
     );
-    expect(page1Opacity.opacity, 0.5);
+
+    // The pill overlays the top of the preview (D22) and a valid (degraded)
+    // preview placeholder still renders — blocked state never crashes or
+    // empties the preview (RE-CF-7).
+    final pill = find.byKey(kBlockedPillKey);
+    expect(pill, findsOneWidget);
+    expect(find.textContaining('No room for the quote'), findsOneWidget);
+    expect(find.byKey(kPreviewPlaceholderKey), findsOneWidget);
+
+    final positioned = tester.widget<Positioned>(
+      find.ancestor(of: pill, matching: find.byType(Positioned)),
+    );
+    expect(positioned.top, 12);
+    expect(positioned.left, 16);
+    expect(positioned.right, 16);
+  });
+
+  testWidgets('unblocking the layer hides the pill (RE-CF-7)', (tester) async {
+    final container = await _pumpView(
+      tester,
+      overrides: [
+        blockStatusProvider.overrideWith(
+          (ref) => ref.watch(_blockStatusController),
+        ),
+      ],
+    );
+
+    expect(find.byKey(kBlockedPillKey), findsNothing);
+
+    container.read(_blockStatusController.notifier).state = _blockedStatuses();
+    await tester.pump();
+    expect(find.byKey(kBlockedPillKey), findsOneWidget);
+    expect(find.textContaining('No room for the quote'), findsOneWidget);
+
+    container.read(_blockStatusController.notifier).state =
+        const LayerBlockStatuses.empty();
+    await tester.pump();
+    expect(find.byKey(kBlockedPillKey), findsNothing);
+  });
+
+  testWidgets('the pill shows the first blocked layer in stack order '
+      '(RE-CF-7, D22)', (tester) async {
+    await _pumpView(
+      tester,
+      overrides: [
+        blockStatusProvider.overrideWithValue(
+          const LayerBlockStatuses([
+            LayerBlockStatus(
+              blocked: true,
+              reason: BlockReason.emptyPool,
+              suggestion: 'Add a background color.',
+            ),
+            LayerBlockStatus(
+              blocked: true,
+              reason: BlockReason.noFreeZone,
+              suggestion:
+                  'No room for the quote — shorten it, swap the character, or '
+                  'change the clock position.',
+            ),
+            LayerBlockStatus.clear(),
+            LayerBlockStatus.clear(),
+          ]),
+        ),
+      ],
+    );
+
+    // Background (index 0) is the first blocked layer, so its suggestion wins.
+    expect(find.text('Add a background color.'), findsOneWidget);
+    expect(find.textContaining('No room for the quote'), findsNothing);
+  });
+
+  testWidgets('the pill does not block the item-cycle swipe (RE-CF-7, D22)', (
+    tester,
+  ) async {
+    final container = await _pumpView(
+      tester,
+      overrides: [blockStatusProvider.overrideWithValue(_blockedStatuses())],
+    );
+
+    expect(find.byKey(kBlockedPillKey), findsOneWidget);
+    expect(container.read(configuratorStateProvider).selectedIds[0], isNull);
+
+    // The fling STARTS on the pill itself; IgnorePointer lets the gesture fall
+    // through to the preview's ItemCycleGesture (D22 non-intrusive).
+    // warnIfMissed: false — the "miss" is the point: the pill deliberately
+    // never receives pointer events, so fling() warns that its center does not
+    // hit the Chip. The assertion below proves the swipe still cycles.
+    await tester.fling(
+      find.byKey(kBlockedPillKey),
+      const Offset(-400, 0),
+      1000,
+      warnIfMissed: false,
+    );
+    await tester.pump();
+
+    expect(
+      container.read(configuratorStateProvider).selectedIds[0],
+      'bg_midnight',
+    );
+  });
+
+  testWidgets('opening the sheet does not hide the pill (RE-CF-7)', (
+    tester,
+  ) async {
+    await _pumpView(
+      tester,
+      overrides: [blockStatusProvider.overrideWithValue(_blockedStatuses())],
+    );
+
+    expect(find.byKey(kBlockedPillKey), findsOneWidget);
+
+    await _openSheet(tester);
+
+    expect(find.byKey(const Key('immersive_sheet')), findsOneWidget);
+    expect(find.byKey(kBlockedPillKey), findsOneWidget);
   });
 
   testWidgets('clock presets set the render clock position (RE-CF-8)', (
