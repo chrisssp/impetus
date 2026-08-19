@@ -307,7 +307,7 @@ void main() {
   testWidgets('FAB opens the controls sheet with every control (RE-CF-12)', (
     tester,
   ) async {
-    final container = await _pumpView(tester);
+    await _pumpView(tester);
 
     expect(find.byKey(const Key('immersive_sheet')), findsNothing);
     expect(find.byKey(const ValueKey('controls_fab')), findsOneWidget);
@@ -350,7 +350,7 @@ void main() {
 
     await _openSheet(tester);
 
-    await tester.tap(_inSheet(find.text('Character')));
+    await tester.tap(_inSheet(find.text(LayerType.character.name)));
     await tester.pumpAndSettle();
 
     expect(container.read(configuratorStateProvider).activeLayerIndex, 2);
@@ -371,10 +371,7 @@ void main() {
     await _openSheet(tester);
 
     await _tapInSheet(tester, find.byKey(const ValueKey('mode_toggle_0')));
-    expect(
-      container.read(configuratorStateProvider).modes[0],
-      LayerMode.fixed,
-    );
+    expect(container.read(configuratorStateProvider).modes[0], LayerMode.fixed);
     expect(_inSheet(find.text('Mode: Fixed')), findsOneWidget);
 
     await _tapInSheet(tester, find.byKey(const ValueKey('mode_toggle_0')));
@@ -440,7 +437,10 @@ void main() {
       tester,
       find.byKey(const ValueKey('catalog_add_bg_forest')),
     );
-    ids = container.read(configuratorStateProvider).pools[0].map((item) => item.id);
+    ids = container
+        .read(configuratorStateProvider)
+        .pools[0]
+        .map((item) => item.id);
     expect(ids.where((id) => id == 'bg_forest').length, 1);
 
     // Adding again dedupes by id (RE-CF-5).
@@ -448,7 +448,10 @@ void main() {
       tester,
       find.byKey(const ValueKey('catalog_add_bg_forest')),
     );
-    ids = container.read(configuratorStateProvider).pools[0].map((item) => item.id);
+    ids = container
+        .read(configuratorStateProvider)
+        .pools[0]
+        .map((item) => item.id);
     expect(ids.where((id) => id == 'bg_forest').length, 1);
   });
 
