@@ -86,6 +86,26 @@ class ConfiguratorNotifier extends Notifier<ConfiguratorState> {
     state = state.copyWith(selectedIds: selectedIds);
   }
 
+  /// Cycles a layer's selection to the next or previous pool item, wrapping
+  /// modulo the pool length (RE-CF-3, design D18/D24).
+  ///
+  /// [direction] is +1 to advance to the next item (left swipe) or -1 to move
+  /// back to the previous item (right swipe). An empty pool is a no-op and a
+  /// single-item pool stays on that item. Layer order, modes, freeze flags and
+  /// pools are untouched — only the selection moves, through [selectItem].
+  void cycleItem(int layerIndex, int direction) {
+    final pool = state.pools[layerIndex];
+    if (pool.isEmpty) {
+      return;
+    }
+    final current = state.selectedIds[layerIndex];
+    final idx = current != null
+        ? pool.indexWhere((item) => item.id == current)
+        : 0;
+    final next = (idx + direction) % pool.length;
+    selectItem(layerIndex, pool[next].id);
+  }
+
   /// Re-selects the current item of every dynamic, non-frozen layer from its
   /// pool (RE-CF-6, design D6). Fixed and frozen layers keep their selection.
   void shuffle() {
