@@ -1,12 +1,12 @@
 // ItemCycleGesture — the horizontal swipe surface of the immersive preview
 // (design D17/D18/D19, RE-CF-3, tasks 3.1-3.3).
 //
-// Wrapping the preview area in this dedicated gesture layer keeps the
-// horizontal drag recognizer OUT of the shell's PageView subtree: the shell
-// keeps its layer navigation while the preview surface consumes horizontal
-// drags for item cycling. The view owns the active-layer decision and receives
-// a direction — +1 for a left swipe (next pool item) and -1 for a right swipe
-// (previous pool item), per design D18.
+// The horizontal drag recognizer lives ONLY on the immersive preview surface:
+// the old PageView layer shell is gone (slice 6), so this gesture is the sole
+// horizontal-swipe consumer in the shell — it cycles the ACTIVE layer's item.
+// The view owns the active-layer decision and receives a direction — +1 for a
+// left swipe (next pool item) and -1 for a right swipe (previous pool item),
+// per design D18.
 //
 // While [sheetOpen] is true the onHorizontalDragEnd callback is null, which is
 // the idiomatic Flutter way to disable a gesture: the bottom sheet owns the

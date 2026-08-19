@@ -100,7 +100,9 @@ Future<ProviderContainer> _pumpView(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: Scaffold(body: ConfiguratorView())),
+      // The configurator is the app home (task 7.3): it hosts its own shell
+      // Scaffold and AppBar, so no test-level Scaffold wraps it.
+      child: const MaterialApp(home: ConfiguratorView()),
     ),
   );
   return container;
@@ -705,10 +707,13 @@ void main() {
     // body space (RE-CF-9, D23).
     expect(find.byType(PageView), findsNothing);
 
-    // Full-bleed: the rendered preview spans the entire ConfiguratorView body.
+    // Full-bleed: the rendered preview spans the configurator body — full
+    // width and down to the bottom edge; only the slim shell AppBar (kept
+    // for the title, D27) sits above it (RE-CF-9).
     final imageRect = tester.getRect(find.byType(Image));
     final viewRect = tester.getRect(find.byType(ConfiguratorView));
-    expect(imageRect, viewRect);
+    expect(imageRect.width, viewRect.width);
+    expect(imageRect.bottom, viewRect.bottom);
 
     // The bottom sheet is the single control surface: after opening it, every
     // control key exists exactly once — the shell's duplicates are gone

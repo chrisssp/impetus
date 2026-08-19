@@ -80,8 +80,9 @@ void main() {
   });
 
   group('tree-level device-size override (RE-CF-9, D16)', () {
-    /// Pumps the immersive shell on a [device]-sized test surface and returns
-    /// the RenderConfigs the (recording fake) renderer was asked to draw.
+    /// Pumps the immersive shell (the app home, task 7.3) on a [device]-sized
+    /// test surface and returns the RenderConfigs the (recording fake)
+    /// renderer was asked to draw.
     Future<List<RenderConfig>> pumpOnDevice(
       WidgetTester tester,
       Size device,
@@ -107,35 +108,35 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(home: Scaffold(body: ConfiguratorView())),
+          child: const MaterialApp(home: ConfiguratorView()),
         ),
       );
       await tester.pump();
       return rendered;
     }
 
-    testWidgets('the rendered canvas follows the device size at 360x640', (
+    testWidgets('the rendered canvas follows the device body at 360x640', (
       tester,
     ) async {
       final rendered = await pumpOnDevice(tester, const Size(360, 640));
 
       expect(
         rendered.single.size,
-        const Size(360, 640),
+        Size(360, 640 - kToolbarHeight),
         reason:
-            'the preview pipeline must render at the device canvas, not '
-            'the pinned 540x960 default (RE-CF-9)',
+            'the preview pipeline must render at the device canvas minus the '
+            'slim shell AppBar, not the pinned 540x960 default (RE-CF-9, D27)',
       );
     });
 
-    testWidgets('the rendered canvas follows the device size at 1080x1920', (
+    testWidgets('the rendered canvas follows the device body at 1080x1920', (
       tester,
     ) async {
       final rendered = await pumpOnDevice(tester, const Size(1080, 1920));
 
       expect(
         rendered.single.size,
-        const Size(1080, 1920),
+        Size(1080, 1920 - kToolbarHeight),
         reason:
             'a different device aspect ratio must re-derive the '
             'RenderConfig (RE-CF-9)',
