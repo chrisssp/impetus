@@ -1,21 +1,24 @@
-// Tests for the configurator state foundation (PR 1).
+// Tests for the configurator state foundation and notifier actions.
 //
-// Strict TDD (openspec/config.yaml apply.tdd: true): this file is the RED test
-// for Phase 1 tasks 1.1-1.5. It covers:
+// Strict TDD (openspec/config.yaml apply.tdd: true): Part A is the RED test
+// for Phase 1 tasks 1.1-1.5, Part B for Phase 2 tasks 2.1-2.2. Coverage:
 //   - RE-CF-1: copyWith yields a new instance and leaves the previous state
 //     unchanged.
 //   - RE-CF-2: exactly four layers in fixed order background -> phrase ->
 //     character -> font, and the order is immutable under any copyWith.
 //   - RE-CF-5 / RE-CF-11: placeholder catalogs and default pools (foundation).
-//
-// Part A only — provider-free, no widget tree. Part B (ProviderContainer
-// tests) arrives with the ConfiguratorNotifier in Phase 2.
+//   - RE-CF-4/5/6/8 (Part B): ConfiguratorNotifier actions via
+//     ProviderContainer, no widget tree. shuffle determinism uses a seeded
+//     randomProvider override (design D7).
 
+import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' show Color;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart' show ProviderContainer;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:impetus/configurator/catalog.dart';
+import 'package:impetus/configurator/configurator_notifier.dart';
 import 'package:impetus/configurator/configurator_state.dart';
 import 'package:impetus/configurator/layer_model.dart';
 import 'package:impetus/models/render_config.dart' show ClockPosition;
@@ -30,6 +33,18 @@ const _layerOrder = [
 /// A minimal PNG header for test-only [CharacterItem] instances.
 Uint8List _tinyPng() =>
     Uint8List.fromList(const [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+/// A [ProviderContainer] with the notifier wired and, when [seed] is given,
+/// [randomProvider] overridden with a seeded [Random] (design D7).
+ProviderContainer _container({int? seed}) {
+  final container = ProviderContainer(
+    overrides: [
+      if (seed != null) randomProvider.overrideWithValue(Random(seed)),
+    ],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
 
 /// A fresh state built from the placeholder catalogs and dynamic modes.
 ConfiguratorState _baseState() {
@@ -273,6 +288,173 @@ void main() {
       expect(kDefaultPools[1], same(kPhraseCatalog));
       expect(kDefaultPools[2], same(kCharacterCatalog));
       expect(kDefaultPools[3], same(kFontCatalog));
+    });
+  });
+
+  group('ConfiguratorNotifier (RE-CF-4/5/6/8)', () {
+    test('setActiveLayer clamps out-of-range indexes to the stack edges', () {
+      final container = _container();
+      final notifier = container.read(configuratorStateProvider.notifier);
+
+      notifier.setActiveLayer(-1);
+      expect(container.read(configuratorStateProvider).activeLayerIndex, 0);
+      notifier.setActiveLayer(99);
+      expect(container.read(configuratorStateProvider).activeLayerIndex, 3);
+      notifier.setActiveLayer(2);
+      expect(container.read(configuratorStateProvider).activeLayerIndex, 2);
+    });
+
+    test('toggleMode flips a layer between fixed and dynamic (RE-CF-4)', () {
+      final container = _container();
+      final notifier = container.read(configuratorStateProvider.notifier);
+
+      expect(
+        container.read(configuratorStateProvider).modes[0],
+        LayerMode.dynamic,
+      );
+      notifier.toggleMode(0);
+      expect(
+        container.read(configuratorStateProvider).modes[0],
+        LayerMode.fixed,
+      );
+      notifier.toggleMode(0);
+      expect(
+        container.read(configuratorStateProvider).modes[0],
+        LayerMode.dynamic,
+      );
+    });
+
+    test('toggleMode survives setActiveLayer navigation (RE-CF-4)', () {
+      final container = _container();
+      final notifier = container.read(configuratorStateProvider.notifier);
+
+      notifier.toggleMode(1);
+      notifier.setActiveLayer(3);
+      notifier.setActiveLayer(1);
+
+      final state = container.read(configuratorStateProvider);
+      expect(state.modes[1], LayerMode.fixed);
+      expect(state.activeLayerIndex, 1);
+    });
+
+    test(
+      'addToPool dedupes by id so an item appears exactly once (RE-CF-5)',
+      () {
+        final container = _container();
+        final notifier = container.read(configuratorStateProvider.notifier);
+        const nova = BackgroundItem(
+          id: 'bg_nova',
+          label: 'Nova',
+          color: Color(0xFF000000),
+        );
+
+        notifier.addToPool(0, nova);
+        notifier.addToPool(0, nova);
+
+        final ids = container
+            .read(configuratorStateProvider)
+            .pools[0]
+            .map((item) => item.id)
+            .toList();
+        expect(ids.where((id) => id == nova.id), hasLength(1));
+      },
+    );
+
+    test('removeFromPool falls back to the first remaining item or null '
+        '(RE-CF-5, D8)', () {
+      final container = _container();
+      final notifier = container.read(configuratorStateProvider.notifier);
+
+      notifier.selectItem(0, 'bg_navy');
+      notifier.removeFromPool(0, 'bg_navy');
+      expect(
+        container.read(configuratorStateProvider).selectedIds[0],
+        'bg_midnight',
+      );
+
+      notifier.removeFromPool(0, 'bg_midnight');
+      expect(
+        container.read(configuratorStateProvider).selectedIds[0],
+        'bg_forest',
+      );
+
+      notifier.removeFromPool(0, 'bg_forest');
+      final state = container.read(configuratorStateProvider);
+      expect(state.pools[0], isEmpty);
+      expect(state.selectedIds[0], isNull);
+    });
+
+    test('removeFromPool of a non-selected item keeps the selection '
+        '(RE-CF-5, D8)', () {
+      final container = _container();
+      final notifier = container.read(configuratorStateProvider.notifier);
+
+      notifier.selectItem(0, 'bg_navy');
+      notifier.removeFromPool(0, 'bg_midnight');
+
+      expect(
+        container.read(configuratorStateProvider).selectedIds[0],
+        'bg_navy',
+      );
+    });
+
+    test('shuffle re-selects only dynamic, non-frozen layers (RE-CF-6, '
+        'seeded D7)', () {
+      final container = _container(seed: 3);
+      final notifier = container.read(configuratorStateProvider.notifier);
+
+      notifier.selectItem(0, 'bg_navy');
+      notifier.toggleMode(1); // phrase -> fixed
+      notifier.selectItem(1, 'ph_strength');
+      notifier.freeze(2); // character frozen (still dynamic)
+      notifier.selectItem(2, 'ch_alpha');
+      notifier.selectItem(3, 'fo_roboto');
+
+      notifier.shuffle();
+
+      final state = container.read(configuratorStateProvider);
+      expect(state.selectedIds[0], 'bg_midnight'); // nextInt(3) == 1
+      expect(state.selectedIds[1], 'ph_strength'); // fixed, unchanged
+      expect(state.selectedIds[2], 'ch_alpha'); // frozen, unchanged
+      expect(state.selectedIds[3], 'fo_roboto_mono'); // nextInt(2) == 1
+    });
+
+    test('freeze pins the selection across shuffle; unfreeze restores '
+        'participation (RE-CF-6)', () {
+      final container = _container(seed: 3);
+      final notifier = container.read(configuratorStateProvider.notifier);
+
+      notifier.toggleMode(1);
+      notifier.toggleMode(2);
+      notifier.toggleMode(3);
+      notifier.selectItem(0, 'bg_navy');
+
+      notifier.freeze(0);
+      expect(container.read(configuratorStateProvider).frozen[0], isTrue);
+      notifier.shuffle(); // frozen layer consumes no draw
+      expect(
+        container.read(configuratorStateProvider).selectedIds[0],
+        'bg_navy',
+      );
+
+      notifier.unfreeze(0);
+      expect(container.read(configuratorStateProvider).frozen[0], isFalse);
+      notifier.shuffle(); // first draw on the seeded Random -> index 1
+      expect(
+        container.read(configuratorStateProvider).selectedIds[0],
+        'bg_midnight',
+      );
+    });
+
+    test('setClockPosition accepts all four presets (RE-CF-8)', () {
+      final container = _container();
+      final notifier = container.read(configuratorStateProvider.notifier);
+
+      expect(ClockPosition.values, hasLength(4));
+      for (final preset in ClockPosition.values) {
+        notifier.setClockPosition(preset);
+        expect(container.read(configuratorStateProvider).clockPosition, preset);
+      }
     });
   });
 }
