@@ -654,4 +654,32 @@ void main() {
 
     expect(find.byKey(const Key('immersive_sheet')), findsNothing);
   });
+
+  testWidgets('the whole body is the preview: no shell pages or bottom bars; '
+      'controls live only in the sheet (RE-CF-9/12, D23)', (tester) async {
+    final container = await _pumpView(tester);
+    final notifier =
+        container.read(previewProvider.notifier) as _FakePreviewNotifier;
+    notifier.completeInitial(
+      PreviewResult(png: kAlphaPngBytes, blocks: const LayerBlockStatuses.empty()),
+    );
+    await tester.pump();
+
+    // The PageView shell is gone: no pages, no fixed bottom bars compete for
+    // body space (RE-CF-9, D23).
+    expect(find.byType(PageView), findsNothing);
+
+    // Full-bleed: the rendered preview spans the entire ConfiguratorView body.
+    final imageRect = tester.getRect(find.byType(Image));
+    final viewRect = tester.getRect(find.byType(ConfiguratorView));
+    expect(imageRect, viewRect);
+
+    // The bottom sheet is the single control surface: after opening it, every
+    // control key exists exactly once — the shell's duplicates are gone
+    // (RE-CF-12).
+    await _openSheet(tester);
+    expect(find.byKey(const ValueKey('mode_toggle_0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('shuffle_controls')), findsOneWidget);
+    expect(find.byKey(const ValueKey('clock_presets')), findsOneWidget);
+  });
 }
