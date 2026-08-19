@@ -30,6 +30,9 @@ import 'package:impetus/main.dart';
 
 import '../helpers/load_roboto.dart';
 
+/// The pinned 540x960 canvas the app-shell golden renders at (design D25).
+const Size _canvas = Size(540, 960);
+
 void main() {
   setUpAll(loadRoboto);
 
@@ -44,7 +47,7 @@ void main() {
         kFontCatalog,
       ],
     );
-    final defaultConfig = buildRenderConfig(defaultState);
+    final defaultConfig = buildRenderConfig(defaultState, canvasSize: _canvas);
 
     // Pre-render the default config through the real engine on the real event
     // loop, so the golden baseline contains actual preview pixels (D14).

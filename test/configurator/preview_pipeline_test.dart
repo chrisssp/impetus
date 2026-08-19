@@ -7,6 +7,7 @@
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'dart:ui' show Size;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:impetus/configurator/catalog.dart';
@@ -21,6 +22,9 @@ const List<int> _pngMagic = [0x89, 0x50, 0x4e, 0x47];
 
 const int _canvasWidth = 540;
 const int _canvasHeight = 960;
+
+/// The pinned canvas size these pipeline tests render at (design D16/D25).
+const Size _canvas = Size(540, 960);
 
 ConfiguratorState _baseState({List<List<LayerItem>>? pools}) {
   return ConfiguratorState(
@@ -47,7 +51,7 @@ void main() {
 
   group('renderPreview (D9/D11)', () {
     test('renders a valid PNG and reports all four layers unblocked', () async {
-      final config = buildRenderConfig(_baseState());
+      final config = buildRenderConfig(_baseState(), canvasSize: _canvas);
 
       final result = await renderPreview(config);
 
@@ -74,6 +78,7 @@ void main() {
               kFontCatalog,
             ],
           ),
+          canvasSize: _canvas,
         );
 
         final result = await renderPreview(config);
@@ -104,6 +109,7 @@ void main() {
               kFontCatalog,
             ],
           ),
+          canvasSize: _canvas,
         );
 
         final result = await renderPreview(config);
@@ -134,6 +140,7 @@ void main() {
               const <LayerItem>[],
             ],
           ),
+          canvasSize: _canvas,
         );
 
         final result = await renderPreview(config);
@@ -154,6 +161,7 @@ void main() {
       () async {
         final config = buildRenderConfig(
           _baseState().copyWith(clockPosition: ClockPosition.bottomCenter),
+          canvasSize: _canvas,
         );
 
         final result = await renderPreview(config);
@@ -166,7 +174,7 @@ void main() {
     test(
       'is deterministic: the same config renders byte-identical PNGs',
       () async {
-        final config = buildRenderConfig(_baseState());
+        final config = buildRenderConfig(_baseState(), canvasSize: _canvas);
 
         final first = await renderPreview(config);
         final second = await renderPreview(config);

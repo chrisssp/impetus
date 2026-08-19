@@ -3,10 +3,13 @@
 // RE-CF-8/9, tasks 3.1/3.3/4.1/4.3).
 //
 // buildRenderConfig is deliberately synchronous and side-effect free so it can
-// be unit-tested and reused by the preview provider. An empty pool degrades
-// into a sentinel instead of throwing: transparent background, empty quote,
-// null character, empty font family — the block analyzer turns those into
-// user-facing guidance (see blocking.dart).
+// be unit-tested and reused by the preview provider. The canvas size comes in
+// as a parameter (design D16, RE-CF-9): the caller — normally
+// previewSizeProvider — decides the dimensions, so the mapping stays pure and
+// tests can pin any size. An empty pool degrades into a sentinel instead of
+// throwing: transparent background, empty quote, null character, empty font
+// family — the block analyzer turns those into user-facing guidance (see
+// blocking.dart).
 //
 // renderPreview mirrors the engine's internal layout computation so the block
 // analysis reflects the exact layout that was actually drawn.
@@ -22,9 +25,6 @@ import 'package:impetus/engine/layout_filter.dart';
 import 'package:impetus/engine/render_engine.dart';
 import 'package:impetus/engine/zone_calculator.dart';
 import 'package:impetus/models/render_config.dart';
-
-/// The fixed preview canvas: 540x960 portrait (design D11).
-const Size _canvas = Size(540, 960);
 
 /// Resolves the current selection for one layer: the selected item when the
 /// id matches a pool entry, otherwise the pool's first item so the WYSIWYG
@@ -44,14 +44,20 @@ LayerItem? _firstResolved(List<LayerItem> pool, String? selectedId) {
 }
 
 /// Maps [state] onto the engine's [RenderConfig] for the preview layer.
-RenderConfig buildRenderConfig(ConfiguratorState state) {
+///
+/// [canvasSize] becomes the render canvas: the device-adaptive preview passes
+/// the available body size (D16), while tests and goldens pin 540x960 (D25).
+RenderConfig buildRenderConfig(
+  ConfiguratorState state, {
+  required Size canvasSize,
+}) {
   final background = _firstResolved(state.pools[0], state.selectedIds[0]);
   final phrase = _firstResolved(state.pools[1], state.selectedIds[1]);
   final character = _firstResolved(state.pools[2], state.selectedIds[2]);
   final font = _firstResolved(state.pools[3], state.selectedIds[3]);
 
   return RenderConfig(
-    size: _canvas,
+    size: canvasSize,
     background: background is BackgroundItem
         ? background.color
         : kEmptyBackgroundColor,

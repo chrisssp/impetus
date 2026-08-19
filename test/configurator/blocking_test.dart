@@ -8,7 +8,7 @@
 // none may throw (RE-CF-7).
 
 import 'dart:io';
-import 'dart:ui' show Offset, Rect;
+import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:impetus/configurator/blocking.dart';
@@ -26,6 +26,9 @@ import 'package:impetus/models/zones.dart';
 import '../helpers/load_roboto.dart';
 
 final _fixturePng = File('test/fixtures/character_alpha.png').readAsBytesSync();
+
+/// The pinned canvas size these block-analysis tests render at (D16/D25).
+const Size _canvas = Size(540, 960);
 
 const _phraseSuggestion =
     'No room for the quote — shorten it, swap the character, or change the '
@@ -60,7 +63,7 @@ Future<({Rect bbox, LayoutResult layout})> _measure(RenderConfig config) async {
 
 /// Builds the config from [state], measures it, then analyzes it.
 Future<LayerBlockStatuses> _statuses(ConfiguratorState state) async {
-  final config = buildRenderConfig(state);
+  final config = buildRenderConfig(state, canvasSize: _canvas);
   final measured = await _measure(config);
   return BlockAnalyzer.analyze(config, measured.bbox, measured.layout);
 }
@@ -132,7 +135,7 @@ void main() {
           ],
           selectedIds: const [null, 'ph_huge', null, null],
         );
-        final config = buildRenderConfig(state);
+        final config = buildRenderConfig(state, canvasSize: _canvas);
         final measured = await _measure(config);
         expect(measured.layout.quoteRect, Rect.zero); // precondition
 
@@ -159,7 +162,7 @@ void main() {
     test(
       'character is blocked when its bbox is empty (no visible art)',
       () async {
-        final config = buildRenderConfig(_state());
+        final config = buildRenderConfig(_state(), canvasSize: _canvas);
         // Real fixture bytes, but a zero bbox: bytes exist, art does not.
         final statuses = BlockAnalyzer.analyze(config, Rect.zero, _roomyLayout);
         final character = statuses.entries[LayerType.character.index];
@@ -171,7 +174,7 @@ void main() {
     );
 
     test('character is unblocked when the fixture art is measured', () async {
-      final config = buildRenderConfig(_state());
+      final config = buildRenderConfig(_state(), canvasSize: _canvas);
       final measured = await _measure(config);
       expect(measured.bbox, isNot(Rect.zero)); // precondition
       final character = BlockAnalyzer.analyze(
@@ -209,7 +212,7 @@ void main() {
         characterPool: const [],
         fontPool: const [],
       );
-      final config = buildRenderConfig(state);
+      final config = buildRenderConfig(state, canvasSize: _canvas);
       final measured = await _measure(config);
       final statuses = BlockAnalyzer.analyze(
         config,
