@@ -371,7 +371,15 @@ void main() {
 
     // The fling STARTS on the pill itself; IgnorePointer lets the gesture fall
     // through to the preview's ItemCycleGesture (D22 non-intrusive).
-    await tester.fling(find.byKey(kBlockedPillKey), const Offset(-400, 0), 1000);
+    // warnIfMissed: false — the "miss" is the point: the pill deliberately
+    // never receives pointer events, so fling() warns that its center does not
+    // hit the Chip. The assertion below proves the swipe still cycles.
+    await tester.fling(
+      find.byKey(kBlockedPillKey),
+      const Offset(-400, 0),
+      1000,
+      warnIfMissed: false,
+    );
     await tester.pump();
 
     expect(
