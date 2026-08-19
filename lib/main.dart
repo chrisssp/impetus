@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:impetus/configurator/configurator_view.dart';
-import 'package:impetus/configurator/spike_dev_trigger.dart';
 import 'package:impetus/services/wallpaper_bridge.dart';
 
 /// Spike trigger state machine.
@@ -26,13 +25,10 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       theme: ThemeData(fontFamily: 'Roboto', useMaterial3: true),
-      home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Impetus'),
-          actions: const [SpikeDevTrigger()],
-        ),
-        body: const ConfiguratorView(),
-      ),
+      // The configurator IS the app home (task 7.3, D27): it hosts its own
+      // shell Scaffold and the 'Impetus' AppBar with the dev spike trigger,
+      // so the whole body below the slim chrome is the live wallpaper.
+      home: const ConfiguratorView(),
     );
   }
 }

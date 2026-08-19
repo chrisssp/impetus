@@ -1,10 +1,15 @@
-// Widget tests for the app shell (app-shell spec RE-AS-2/RE-AS-3, design D14).
+// Widget tests for the app shell (app-shell spec RE-AS-2/RE-AS-3, design D14,
+// task 7.1).
 //
 // MainApp requires a ProviderScope ancestor because its home — the
 // configurator — reads Riverpod providers. The spec requires:
 //   1. ProviderScope is an ancestor of MaterialApp.
-//   2. The home is the configurator under a Scaffold with an AppBar titled
-//      'Impetus' — not the Part 0 placeholder title (RE-AS-2).
+//   2. The home is ConfiguratorView directly (task 7.3: the Scaffold wrapper
+//      is gone from main.dart — the view IS the body, D27). The configurator
+//      hosts its own shell Scaffold with an AppBar titled 'Impetus' — the
+//      minimal chrome kept over the full-bleed preview (RE-AS-2, D27) — so
+//      the AppBar and the shell Scaffold are DESCENDANTS of ConfiguratorView,
+//      not app-level wrappers around it.
 //   3. No placeholder FAB: the wallpaper spike moved to a dev-only AppBar
 //      action that is one-shot (RE-AS-3). The configurator's controls FAB
 //      (RE-CF-12, D27) is the only FloatingActionButton in the tree.
@@ -37,17 +42,22 @@ void main() {
       findsOneWidget,
     );
 
-    // RE-AS-2: a Scaffold with an AppBar titled 'Impetus' hosts the
-    // configurator — the Part 0 placeholder home is gone.
+    // RE-AS-2: the configurator IS the home — no app-level Scaffold wraps it
+    // (task 7.3, D27). The shell chrome lives INSIDE the configurator: its
+    // own Scaffold with an AppBar titled 'Impetus'.
+    final configurator = find.byType(ConfiguratorView);
+    expect(configurator, findsOneWidget);
     final appBar = find.widgetWithText(AppBar, 'Impetus');
     expect(appBar, findsOneWidget);
-    expect(find.byType(ConfiguratorView), findsOneWidget);
     expect(
-      find.descendant(
-        of: find.byType(Scaffold),
-        matching: find.byType(ConfiguratorView),
-      ),
+      find.descendant(of: configurator, matching: appBar),
       findsOneWidget,
+      reason: 'the AppBar is owned by the configurator shell, not by main',
+    );
+    expect(
+      find.descendant(of: configurator, matching: find.byType(Scaffold)),
+      findsOneWidget,
+      reason: 'the shell Scaffold is hosted inside the configurator',
     );
 
     // RE-AS-3: no placeholder primary-action FAB; the spike lives in the

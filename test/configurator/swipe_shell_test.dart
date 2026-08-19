@@ -68,7 +68,9 @@ Future<_Harness> _pumpShell(WidgetTester tester) async {
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: Scaffold(body: ConfiguratorView())),
+      // The configurator is the app home (task 7.3): it hosts its own shell
+      // Scaffold and AppBar, so no test-level Scaffold wraps it.
+      child: const MaterialApp(home: ConfiguratorView()),
     ),
   );
   return _Harness(renderer, container);
