@@ -2,12 +2,15 @@
 // tasks 6.1/6.5 + 4.1-4.7).
 //
 // The preview renderer is real engine code that never completes under the
-// widget-test fake async zone, so every test overrides previewProvider with a
-// fake notifier (preview_widget_test precedent). The fake stays pending for
-// the pure state-interaction tests and is completed with a crafted block
-// status for the blocked-layer test. Shuffle determinism comes from overriding
-// randomProvider with a scripted random that always picks the first pool item
-// (design D7).
+// widget-test fake async zone, so tests inject a fake renderer through
+// previewRenderProvider instead of overriding previewProvider: the shell's
+// nested ProviderScope isolates the preview pipeline (the device-size override,
+// D16), so the renderer — read through that scope — is the controllable seam.
+// Pure state-interaction tests run the real pipeline (which stays loading under
+// fake async); the blocked-layer tests feed crafted block statuses through the
+// renderer so the pill follows the LATEST render's blocks (D10). Shuffle
+// determinism comes from overriding randomProvider with a scripted random that
+// always picks the first pool item (design D7).
 //
 // Slice 4 adds the FAB-opened immersive bottom sheet (D20/D21/D27, RE-CF-12):
 // a real FAB tap ([_openSheet]) raises the sheet, and every sheet control is
@@ -22,8 +25,10 @@
 // disappear when the layer unblocks, must show the FIRST blocked layer in
 // stack order, and must not absorb the preview's item-cycle swipe
 // (IgnorePointer passthrough, D22).
+//
+// Slice 6 removes the PageView shell (RE-CF-9/D23 full-bleed): the sheet is
+// the single control surface, so every interaction opens the sheet first.
 
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -35,25 +40,9 @@ import 'package:impetus/configurator/configurator_notifier.dart';
 import 'package:impetus/configurator/configurator_view.dart';
 import 'package:impetus/configurator/layer_model.dart';
 import 'package:impetus/configurator/placeholder_assets.dart';
-import 'package:impetus/configurator/preview_panel.dart';
 import 'package:impetus/configurator/preview_pipeline.dart';
 import 'package:impetus/configurator/preview_provider.dart';
 import 'package:impetus/models/render_config.dart';
-
-/// A fake notifier whose build stays pending until the test decides, and that
-/// exposes [completeInitial] to drive the block status the pages attenuate by.
-class _FakePreviewNotifier extends PreviewNotifier {
-  _FakePreviewNotifier() : _initial = Completer<PreviewResult>();
-
-  final Completer<PreviewResult> _initial;
-
-  @override
-  Future<PreviewResult> build() => _initial.future;
-
-  void completeInitial(PreviewResult result) {
-    _initial.complete(result);
-  }
-}
 
 /// A random that always returns the first value, so shuffle deterministically
 /// re-selects each pool's first item (design D7).
@@ -68,11 +57,16 @@ class _ScriptedRandom implements Random {
   bool nextBool() => false;
 }
 
-/// A controllable block-status source so tests can flip a layer between
-/// blocked and unblocked and watch the pill appear and disappear (RE-CF-7).
-final _blockStatusController = StateProvider<LayerBlockStatuses>(
-  (ref) => const LayerBlockStatuses.empty(),
-);
+/// A preview renderer whose returned block statuses the test can flip between
+/// pumps. Re-renders are triggered by render-relevant state changes (the
+/// debounced pipeline, D12), so the pill follows the LATEST render's blocks
+/// (D10, RE-CF-7).
+class _MutableStatusRenderer {
+  LayerBlockStatuses statuses = const LayerBlockStatuses.empty();
+
+  Future<PreviewResult> call(RenderConfig config) async =>
+      PreviewResult(png: kAlphaPngBytes, blocks: statuses);
+}
 
 /// The statuses used by the blocked-pill tests: the phrase layer (index 1) is
 /// blocked with the no-free-zone suggestion (RE-CF-7, D22).
@@ -98,7 +92,6 @@ Future<ProviderContainer> _pumpView(
 }) async {
   final container = ProviderContainer(
     overrides: [
-      previewProvider.overrideWith(_FakePreviewNotifier.new),
       if (scriptedRandom) randomProvider.overrideWithValue(_ScriptedRandom()),
       ...overrides,
     ],
@@ -122,20 +115,14 @@ Future<void> _tap(WidgetTester tester, Finder finder) async {
   await tester.pump();
 }
 
-/// Flings the shell one page to the left and settles the scroll animation.
-Future<void> _flingLeft(WidgetTester tester) async {
-  await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
-  await tester.pumpAndSettle();
-}
-
 /// Opens the controls bottom sheet with a real FAB tap (RE-CF-12, D27).
 Future<void> _openSheet(WidgetTester tester) async {
   await tester.tap(find.byKey(const ValueKey('controls_fab')));
   await tester.pumpAndSettle();
 }
 
-/// Scopes [finder] to the open bottom sheet ([Key('immersive_sheet')]) so the
-/// swipe shell's duplicate controls behind the modal never match.
+/// Scopes [finder] to the open bottom sheet ([Key('immersive_sheet')]) so
+/// sheet finders never match controls rendered elsewhere in the tree.
 Finder _inSheet(Finder finder) => find.descendant(
   of: find.byKey(const Key('immersive_sheet')),
   matching: finder,
@@ -152,19 +139,23 @@ void main() {
   ) async {
     final container = await _pumpView(tester);
 
-    expect(find.text('Mode: Dynamic'), findsOneWidget);
     expect(
       container.read(configuratorStateProvider).modes[0],
       LayerMode.dynamic,
     );
 
-    await _tap(tester, find.byKey(const ValueKey('mode_toggle_0')));
+    // The sheet is the single control surface (RE-CF-12): the toggle lives
+    // there, not in a shell page.
+    await _openSheet(tester);
+    expect(_inSheet(find.text('Mode: Dynamic')), findsOneWidget);
+
+    await _tapInSheet(tester, find.byKey(const ValueKey('mode_toggle_0')));
 
     expect(container.read(configuratorStateProvider).modes[0], LayerMode.fixed);
-    expect(find.text('Mode: Fixed'), findsOneWidget);
-    expect(find.text('Mode: Dynamic'), findsNothing);
+    expect(_inSheet(find.text('Mode: Fixed')), findsOneWidget);
+    expect(_inSheet(find.text('Mode: Dynamic')), findsNothing);
 
-    await _tap(tester, find.byKey(const ValueKey('mode_toggle_0')));
+    await _tapInSheet(tester, find.byKey(const ValueKey('mode_toggle_0')));
 
     expect(
       container.read(configuratorStateProvider).modes[0],
@@ -172,37 +163,35 @@ void main() {
     );
   });
 
-  testWidgets(
-    'mode survives swipe navigation because it lives in the state (RE-CF-4)',
-    (tester) async {
-      final container = await _pumpView(tester);
+  testWidgets('mode survives layer switching because it lives in the state '
+      '(RE-CF-4)', (tester) async {
+    final container = await _pumpView(tester);
 
-      await _tap(tester, find.byKey(const ValueKey('mode_toggle_0')));
-      expect(
-        container.read(configuratorStateProvider).modes[0],
-        LayerMode.fixed,
-      );
+    await _openSheet(tester);
+    await _tapInSheet(tester, find.byKey(const ValueKey('mode_toggle_0')));
+    expect(container.read(configuratorStateProvider).modes[0], LayerMode.fixed);
 
-      await _flingLeft(tester);
-      expect(container.read(configuratorStateProvider).activeLayerIndex, 1);
+    // The active layer changes in the sheet's selector, not by swipe
+    // (RE-CF-3); the mode survives the switch.
+    await _tapInSheet(tester, find.text(LayerType.character.name));
+    expect(container.read(configuratorStateProvider).activeLayerIndex, 2);
+    expect(container.read(configuratorStateProvider).modes[0], LayerMode.fixed);
 
-      await tester.fling(find.byType(PageView), const Offset(400, 0), 1000);
-      await tester.pumpAndSettle();
-
-      expect(container.read(configuratorStateProvider).activeLayerIndex, 0);
-      expect(
-        container.read(configuratorStateProvider).modes[0],
-        LayerMode.fixed,
-      );
-    },
-  );
+    await _tapInSheet(tester, find.text(LayerType.background.name));
+    expect(container.read(configuratorStateProvider).activeLayerIndex, 0);
+    expect(_inSheet(find.text('Mode: Fixed')), findsOneWidget);
+  });
 
   testWidgets('pool items are removed and re-added with dedupe (RE-CF-5)', (
     tester,
   ) async {
     final container = await _pumpView(tester);
 
-    await _tap(tester, find.byKey(const ValueKey('pool_remove_bg_navy')));
+    await _openSheet(tester);
+    await _tapInSheet(
+      tester,
+      find.byKey(const ValueKey('pool_remove_bg_navy')),
+    );
     var ids = container
         .read(configuratorStateProvider)
         .pools[0]
@@ -210,7 +199,10 @@ void main() {
     expect(ids, isNot(contains('bg_navy')));
     expect(find.byKey(const ValueKey('pool_item_bg_navy')), findsNothing);
 
-    await _tap(tester, find.byKey(const ValueKey('catalog_add_bg_navy')));
+    await _tapInSheet(
+      tester,
+      find.byKey(const ValueKey('catalog_add_bg_navy')),
+    );
     ids = container
         .read(configuratorStateProvider)
         .pools[0]
@@ -218,7 +210,10 @@ void main() {
     expect(ids.where((id) => id == 'bg_navy').length, 1);
     expect(find.byKey(const ValueKey('pool_item_bg_navy')), findsOneWidget);
 
-    await _tap(tester, find.byKey(const ValueKey('catalog_add_bg_navy')));
+    await _tapInSheet(
+      tester,
+      find.byKey(const ValueKey('catalog_add_bg_navy')),
+    );
     ids = container
         .read(configuratorStateProvider)
         .pools[0]
@@ -231,16 +226,20 @@ void main() {
       '(RE-CF-6, D6)', (tester) async {
     final container = await _pumpView(tester, scriptedRandom: true);
 
-    await _tap(tester, find.byKey(const ValueKey('pool_item_bg_midnight')));
+    await _openSheet(tester);
+    await _tapInSheet(
+      tester,
+      find.byKey(const ValueKey('pool_item_bg_midnight')),
+    );
     expect(
       container.read(configuratorStateProvider).selectedIds[0],
       'bg_midnight',
     );
 
-    await _tap(tester, find.byKey(const ValueKey('freeze_button')));
+    await _tapInSheet(tester, find.byKey(const ValueKey('freeze_button')));
     expect(container.read(configuratorStateProvider).frozen[0], isTrue);
 
-    await _tap(tester, find.byKey(const ValueKey('shuffle_button')));
+    await _tapInSheet(tester, find.byKey(const ValueKey('shuffle_button')));
     expect(
       container.read(configuratorStateProvider).selectedIds[0],
       'bg_midnight',
@@ -250,51 +249,56 @@ void main() {
       'ph_strength',
     );
 
-    await _tap(tester, find.byKey(const ValueKey('freeze_button')));
+    await _tapInSheet(tester, find.byKey(const ValueKey('freeze_button')));
     expect(container.read(configuratorStateProvider).frozen[0], isFalse);
 
-    await _tap(tester, find.byKey(const ValueKey('shuffle_button')));
+    await _tapInSheet(tester, find.byKey(const ValueKey('shuffle_button')));
     expect(container.read(configuratorStateProvider).selectedIds[0], 'bg_navy');
   });
 
   testWidgets('a blocked layer shows its suggestion in the pill, not an '
       'attenuated page (RE-CF-7, D22)', (tester) async {
-    final container = await _pumpView(tester);
-
-    expect(find.byKey(kBlockedPillKey), findsNothing);
-    expect(find.byKey(const ValueKey('blocked_banner_0')), findsNothing);
-    expect(find.byKey(const ValueKey('layer_attenuation_0')), findsNothing);
-
-    final notifier =
-        container.read(previewProvider.notifier) as _FakePreviewNotifier;
-    notifier.completeInitial(
-      PreviewResult(png: kAlphaPngBytes, blocks: _blockedStatuses()),
+    await _pumpView(
+      tester,
+      overrides: [
+        previewRenderProvider.overrideWithValue(
+          (_) async =>
+              PreviewResult(png: kAlphaPngBytes, blocks: _blockedStatuses()),
+        ),
+      ],
     );
     await tester.pump();
 
-    expect(find.byKey(kBlockedPillKey), findsOneWidget);
-    expect(find.textContaining('No room for the quote'), findsOneWidget);
-
     // The old full-page attenuation and per-page banner surfaces are gone
     // (D22): the suggestion lives only in the pill over the preview.
+    expect(find.byKey(const ValueKey('blocked_banner_0')), findsNothing);
+    expect(find.byKey(const ValueKey('layer_attenuation_0')), findsNothing);
     expect(find.byKey(const ValueKey('blocked_banner_1')), findsNothing);
     expect(find.byKey(const ValueKey('layer_attenuation_1')), findsNothing);
+    expect(find.byKey(kBlockedPillKey), findsOneWidget);
+    expect(find.textContaining('No room for the quote'), findsOneWidget);
   });
 
   testWidgets('a blocked layer shows the suggestion pill over the preview '
       'without crashing (RE-CF-7, D22)', (tester) async {
     await _pumpView(
       tester,
-      overrides: [blockStatusProvider.overrideWithValue(_blockedStatuses())],
+      overrides: [
+        previewRenderProvider.overrideWithValue(
+          (_) async =>
+              PreviewResult(png: kAlphaPngBytes, blocks: _blockedStatuses()),
+        ),
+      ],
     );
+    await tester.pump();
 
-    // The pill overlays the top of the preview (D22) and a valid (degraded)
-    // preview placeholder still renders — blocked state never crashes or
-    // empties the preview (RE-CF-7).
+    // The pill overlays the top of the preview (D22) and a valid preview
+    // still renders — blocked state never crashes or empties the preview
+    // (RE-CF-7).
     final pill = find.byKey(kBlockedPillKey);
     expect(pill, findsOneWidget);
     expect(find.textContaining('No room for the quote'), findsOneWidget);
-    expect(find.byKey(kPreviewPlaceholderKey), findsOneWidget);
+    expect(find.byType(Image), findsOneWidget);
 
     final positioned = tester.widget<Positioned>(
       find.ancestor(of: pill, matching: find.byType(Positioned)),
@@ -305,24 +309,32 @@ void main() {
   });
 
   testWidgets('unblocking the layer hides the pill (RE-CF-7)', (tester) async {
+    final renderer = _MutableStatusRenderer();
     final container = await _pumpView(
       tester,
-      overrides: [
-        blockStatusProvider.overrideWith(
-          (ref) => ref.watch(_blockStatusController),
-        ),
-      ],
+      overrides: [previewRenderProvider.overrideWithValue(renderer.call)],
     );
+    await tester.pump();
 
     expect(find.byKey(kBlockedPillKey), findsNothing);
 
-    container.read(_blockStatusController.notifier).state = _blockedStatuses();
+    // The pill follows the LATEST render's blocks (D10): a render-relevant
+    // change re-renders through the debounced pipeline, and the new statuses
+    // flip the pill.
+    renderer.statuses = _blockedStatuses();
+    container.read(configuratorStateProvider.notifier).selectItem(0, 'bg_navy');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
     await tester.pump();
     expect(find.byKey(kBlockedPillKey), findsOneWidget);
     expect(find.textContaining('No room for the quote'), findsOneWidget);
 
-    container.read(_blockStatusController.notifier).state =
-        const LayerBlockStatuses.empty();
+    renderer.statuses = const LayerBlockStatuses.empty();
+    container
+        .read(configuratorStateProvider.notifier)
+        .selectItem(0, 'bg_midnight');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 150));
     await tester.pump();
     expect(find.byKey(kBlockedPillKey), findsNothing);
   });
@@ -332,26 +344,30 @@ void main() {
     await _pumpView(
       tester,
       overrides: [
-        blockStatusProvider.overrideWithValue(
-          const LayerBlockStatuses([
-            LayerBlockStatus(
-              blocked: true,
-              reason: BlockReason.emptyPool,
-              suggestion: 'Add a background color.',
-            ),
-            LayerBlockStatus(
-              blocked: true,
-              reason: BlockReason.noFreeZone,
-              suggestion:
-                  'No room for the quote — shorten it, swap the character, or '
-                  'change the clock position.',
-            ),
-            LayerBlockStatus.clear(),
-            LayerBlockStatus.clear(),
-          ]),
+        previewRenderProvider.overrideWithValue(
+          (_) async => PreviewResult(
+            png: kAlphaPngBytes,
+            blocks: const LayerBlockStatuses([
+              LayerBlockStatus(
+                blocked: true,
+                reason: BlockReason.emptyPool,
+                suggestion: 'Add a background color.',
+              ),
+              LayerBlockStatus(
+                blocked: true,
+                reason: BlockReason.noFreeZone,
+                suggestion:
+                    'No room for the quote — shorten it, swap the character, '
+                    'or change the clock position.',
+              ),
+              LayerBlockStatus.clear(),
+              LayerBlockStatus.clear(),
+            ]),
+          ),
         ),
       ],
     );
+    await tester.pump();
 
     // Background (index 0) is the first blocked layer, so its suggestion wins.
     expect(find.text('Add a background color.'), findsOneWidget);
@@ -363,8 +379,14 @@ void main() {
   ) async {
     final container = await _pumpView(
       tester,
-      overrides: [blockStatusProvider.overrideWithValue(_blockedStatuses())],
+      overrides: [
+        previewRenderProvider.overrideWithValue(
+          (_) async =>
+              PreviewResult(png: kAlphaPngBytes, blocks: _blockedStatuses()),
+        ),
+      ],
     );
+    await tester.pump();
 
     expect(find.byKey(kBlockedPillKey), findsOneWidget);
     expect(container.read(configuratorStateProvider).selectedIds[0], isNull);
@@ -393,8 +415,14 @@ void main() {
   ) async {
     await _pumpView(
       tester,
-      overrides: [blockStatusProvider.overrideWithValue(_blockedStatuses())],
+      overrides: [
+        previewRenderProvider.overrideWithValue(
+          (_) async =>
+              PreviewResult(png: kAlphaPngBytes, blocks: _blockedStatuses()),
+        ),
+      ],
     );
+    await tester.pump();
 
     expect(find.byKey(kBlockedPillKey), findsOneWidget);
 
@@ -409,9 +437,12 @@ void main() {
   ) async {
     final container = await _pumpView(tester);
 
+    await _openSheet(tester);
     Future<void> select(ClockPosition preset) async {
-      await tester.tap(find.byKey(ValueKey('clock_preset_${preset.name}')));
-      await tester.pump();
+      await _tapInSheet(
+        tester,
+        find.byKey(ValueKey('clock_preset_${preset.name}')),
+      );
     }
 
     await select(ClockPosition.topLeft);
@@ -433,11 +464,11 @@ void main() {
     );
 
     final selected = tester.widget<ChoiceChip>(
-      find.byKey(const ValueKey('clock_preset_bottomCenter')),
+      _inSheet(find.byKey(const ValueKey('clock_preset_bottomCenter'))),
     );
     expect(selected.selected, isTrue);
     final unselected = tester.widget<ChoiceChip>(
-      find.byKey(const ValueKey('clock_preset_topCenter')),
+      _inSheet(find.byKey(const ValueKey('clock_preset_topCenter'))),
     );
     expect(unselected.selected, isFalse);
   });
@@ -657,11 +688,16 @@ void main() {
 
   testWidgets('the whole body is the preview: no shell pages or bottom bars; '
       'controls live only in the sheet (RE-CF-9/12, D23)', (tester) async {
-    final container = await _pumpView(tester);
-    final notifier =
-        container.read(previewProvider.notifier) as _FakePreviewNotifier;
-    notifier.completeInitial(
-      PreviewResult(png: kAlphaPngBytes, blocks: const LayerBlockStatuses.empty()),
+    await _pumpView(
+      tester,
+      overrides: [
+        previewRenderProvider.overrideWithValue(
+          (_) async => PreviewResult(
+            png: kAlphaPngBytes,
+            blocks: const LayerBlockStatuses.empty(),
+          ),
+        ),
+      ],
     );
     await tester.pump();
 

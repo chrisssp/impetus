@@ -1,50 +1,43 @@
-// ConfiguratorView — the swipe shell (design D5, RE-CF-3, tasks 6.2/6.6) plus
-// the item-cycle swipe surface (design D17/D18/D19, RE-CF-3, tasks 3.1-3.3),
-// the FAB-opened immersive bottom sheet (design D19/D20/D27, RE-CF-12,
-// tasks 4.1-4.7) and the blocked-layer suggestion pill (design D22, RE-CF-7,
-// tasks 5.1-5.4).
+// ConfiguratorView — the immersive shell (design D5/D16/D17/D19/D20/D23/D27,
+// RE-CF-3/7/9/12, tasks 3.1-3.3 + 4.1-4.7 + 5.1-5.4 + 6.1-6.3).
 //
-// A persistent PreviewPanel sits above a PageView with exactly one fixed page
-// per stack layer ([LayerType.values], RE-CF-2). The PageController uses the
-// default clamp physics, so the shell never wraps past the font layer.
-// onPageChanged routes into ConfiguratorNotifier.setActiveLayer; navigation is
-// render-irrelevant (D12) because previewConfigProvider excludes
-// activeLayerIndex, so swiping never re-renders the preview (RE-CF-3).
+// The whole app body IS the live wallpaper: the root is a Stack whose only
+// non-positioned child — the item-cycle swipe surface wrapping PreviewPanel —
+// fills the body via StackFit.expand (D23, RE-CF-9). The controls FAB
+// (Key('controls_fab'), D27) floats over the preview and opens the immersive
+// bottom sheet ([_openControlsSheet], D20). The blocked-layer suggestion pill
+// (BlockedPill, D22) overlays the top of the preview and ignores pointer
+// events, so the item-cycle swipe passes through it (RE-CF-7).
 //
-// The preview area is wrapped in ItemCycleGesture (Key('immersive_preview'),
-// D17): a horizontal swipe there cycles the ACTIVE layer's item — left = next,
-// right = previous (D18) — through ConfiguratorNotifier.cycleItem, wrapping at
-// the pool edges. The gesture lives OUTSIDE the PageView subtree, so shell
-// navigation is untouched. The controls FAB (Key('controls_fab'), D27) floats
-// over the preview in a Stack and opens the immersive bottom sheet
-// ([_openControlsSheet], D20). While the sheet is up the [_sheetOpen] gate
-// nulls the drag callback, disabling the swipe (D19); the gate is raised
-// before the sheet animates in and lowered when the modal route pops (drag,
-// scrim tap or back).
+// Device-adaptive canvas (D16, RE-CF-9): a LayoutBuilder measures the body and
+// a nested ProviderScope overrides previewSizeProvider with those constraints,
+// so previewConfigProvider re-derives the RenderConfig at the device's aspect
+// ratio. The nested scope inherits every other provider from its parent, so
+// the configurator state and the preview pipeline are shared with the bottom
+// sheet (which lives in the navigator overlay, outside this scope). Tests and
+// goldens keep the 540x960 pin (D25) by pumping PreviewPanel directly or by
+// overriding previewSizeProvider higher in the tree; the widget-level device
+// tests observe the override through the recorded renderer configs.
 //
-// [BlockedPill] overlays the top of the preview (D22): it shows the first
-// blocked layer's unblocking suggestion in a Chip and ignores pointer events,
-// so it never interferes with the item-cycle swipe (RE-CF-7). Unlike the FAB
-// it is NOT gated on [_sheetOpen] — the modal sheet simply covers it while
-// open, and it must stay mounted (RE-CF-7, slice-5 tests).
+// The old PageView shell, ShuffleBar and ClockSelector bars are gone (slice 6):
+// layer selection happens in the sheet's SegmentedButton (RE-CF-3) and every
+// control key now exists exactly once, inside the sheet (RE-CF-12).
 //
-// The view reads the notifier once instead of watching state, so the page
-// controller and the current page survive every state change (mode toggles,
-// pool edits, freezes) without being recreated.
+// The view reads the notifier once instead of watching state, so the preview
+// and the overlays survive every state change (mode toggles, pool edits,
+// freezes) without being recreated.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:impetus/configurator/blocked_pill.dart';
-import 'package:impetus/configurator/clock_selector.dart';
 import 'package:impetus/configurator/configurator_notifier.dart';
 import 'package:impetus/configurator/immersive_bottom_sheet.dart';
 import 'package:impetus/configurator/item_cycle_gesture.dart';
-import 'package:impetus/configurator/layer_model.dart';
-import 'package:impetus/configurator/layer_page.dart';
 import 'package:impetus/configurator/preview_panel.dart';
-import 'package:impetus/configurator/shuffle_bar.dart';
+import 'package:impetus/configurator/preview_provider.dart';
 
-/// The four-layer configurator: persistent preview above the swipe shell.
+/// The four-layer configurator: the whole body is the live wallpaper preview,
+/// with the overlay controls FAB and blocked-layer pill on top.
 class ConfiguratorView extends ConsumerStatefulWidget {
   const ConfiguratorView({super.key});
 
@@ -53,24 +46,10 @@ class ConfiguratorView extends ConsumerStatefulWidget {
 }
 
 class _ConfiguratorViewState extends ConsumerState<ConfiguratorView> {
-  late final PageController _pageController;
-
   /// Whether the controls bottom sheet is open (design D19). While true the
   /// item-cycle swipe on the preview is disabled (null callback), so a swipe
   /// over the open sheet's scrim never cycles the active item (RE-CF-3).
   bool _sheetOpen = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController();
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
 
   /// Raises or lowers the sheet-open gate that disables the preview swipe
   /// (design D19, RE-CF-3).
@@ -112,51 +91,47 @@ class _ConfiguratorViewState extends ConsumerState<ConfiguratorView> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Stack(
-          children: [
-            ItemCycleGesture(
-              key: const Key('immersive_preview'),
-              sheetOpen: _sheetOpen,
-              onCycle: _onCycleItem,
-              child: const SizedBox(
-                height: 160,
-                child: Center(child: PreviewPanel()),
-              ),
-            ),
-            // The controls FAB floats over the preview (D27) and is hidden
-            // while the sheet is open — the sheet owns the interaction surface.
-            if (!_sheetOpen)
-              Positioned(
-                bottom: 16,
-                right: 16,
-                child: FloatingActionButton(
-                  key: const ValueKey('controls_fab'),
-                  onPressed: _openControlsSheet,
-                  tooltip: 'Controls',
-                  child: const Icon(Icons.tune),
-                ),
-              ),
-            // The blocked-layer suggestion pill (D22, RE-CF-7). Always
-            // mounted: it overlays the preview and never intercepts pointer
-            // events, so the item-cycle swipe passes through it.
-            const BlockedPill(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The render canvas follows the device body (D16): every layout change
+        // re-derives previewConfigProvider, which re-renders through the
+        // debounced pipeline (D12). constraints.biggest is finite here — the
+        // view fills a Scaffold body; unbounded parents are not supported.
+        return ProviderScope(
+          overrides: [
+            previewSizeProvider.overrideWithValue(constraints.biggest),
           ],
-        ),
-        Expanded(
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (page) => ref
-                .read(configuratorStateProvider.notifier)
-                .setActiveLayer(page),
-            itemCount: LayerType.values.length,
-            itemBuilder: (context, index) => LayerPage(layerIndex: index),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ItemCycleGesture(
+                key: const Key('immersive_preview'),
+                sheetOpen: _sheetOpen,
+                onCycle: _onCycleItem,
+                child: const PreviewPanel(),
+              ),
+              // The controls FAB floats over the preview (D27) and is hidden
+              // while the sheet is open — the sheet owns the interaction
+              // surface.
+              if (!_sheetOpen)
+                Positioned(
+                  bottom: 16,
+                  right: 16,
+                  child: FloatingActionButton(
+                    key: const ValueKey('controls_fab'),
+                    onPressed: _openControlsSheet,
+                    tooltip: 'Controls',
+                    child: const Icon(Icons.tune),
+                  ),
+                ),
+              // The blocked-layer suggestion pill (D22, RE-CF-7). Always
+              // mounted: it overlays the preview and never intercepts pointer
+              // events, so the item-cycle swipe passes through it.
+              const BlockedPill(),
+            ],
           ),
-        ),
-        const ShuffleBar(),
-        const ClockSelector(),
-      ],
+        );
+      },
     );
   }
 }

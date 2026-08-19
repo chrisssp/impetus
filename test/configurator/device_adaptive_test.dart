@@ -11,8 +11,6 @@
 //     ProviderContainer, changes the canvas derived by previewConfigProvider
 //     (D16/D25).
 
-import 'dart:ui' show Size;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -109,9 +107,7 @@ void main() {
       await tester.pumpWidget(
         UncontrolledProviderScope(
           container: container,
-          child: const MaterialApp(
-            home: Scaffold(body: ConfiguratorView()),
-          ),
+          child: const MaterialApp(home: Scaffold(body: ConfiguratorView())),
         ),
       );
       await tester.pump();
@@ -126,7 +122,8 @@ void main() {
       expect(
         rendered.single.size,
         const Size(360, 640),
-        reason: 'the preview pipeline must render at the device canvas, not '
+        reason:
+            'the preview pipeline must render at the device canvas, not '
             'the pinned 540x960 default (RE-CF-9)',
       );
     });
@@ -139,7 +136,8 @@ void main() {
       expect(
         rendered.single.size,
         const Size(1080, 1920),
-        reason: 'a different device aspect ratio must re-derive the '
+        reason:
+            'a different device aspect ratio must re-derive the '
             'RenderConfig (RE-CF-9)',
       );
     });

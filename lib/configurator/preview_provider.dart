@@ -55,7 +55,7 @@ final previewConfigProvider = Provider<RenderConfig>((ref) {
     ),
   );
   return buildRenderConfig(state, canvasSize: size);
-});
+}, dependencies: [previewSizeProvider]);
 
 /// The render entry point, injectable so tests can substitute a fake renderer
 /// (the real engine futures never complete under the widget-test fake async
@@ -66,8 +66,17 @@ final previewRenderProvider =
     );
 
 /// The debounced, latest-wins preview (design D12).
+///
+/// `dependencies` declares the transitive preview-size dependency so the
+/// immersive shell's nested [ProviderScope] override (D16) isolates the whole
+/// preview pipeline in that scope: reading this provider there re-creates it
+/// with the scoped size instead of tripping Riverpod's cross-scope override
+/// assertion. `previewConfigProvider` must be listed too: Riverpod requires
+/// any provider that reads a provider with a non-null `dependencies` list to
+/// declare it in its own.
 final previewProvider = AsyncNotifierProvider<PreviewNotifier, PreviewResult>(
   PreviewNotifier.new,
+  dependencies: [previewConfigProvider, previewSizeProvider],
 );
 
 class PreviewNotifier extends AsyncNotifier<PreviewResult> {
@@ -142,6 +151,10 @@ class PreviewNotifier extends AsyncNotifier<PreviewResult> {
 
 /// Projection of the latest render's blocks. While the preview is loading or
 /// errored, nothing is known, so every layer reports unblocked (design D10).
+///
+/// `dependencies` follows the preview pipeline into the shell's nested scope
+/// (see [previewProvider]) so the pill shows the blocks of the SAME render the
+/// panel displays — the device-size pipeline, not a second default-size one.
 final blockStatusProvider = Provider<LayerBlockStatuses>((ref) {
   return ref
       .watch(previewProvider)
@@ -149,4 +162,4 @@ final blockStatusProvider = Provider<LayerBlockStatuses>((ref) {
         data: (result) => result.blocks,
         orElse: () => const LayerBlockStatuses.empty(),
       );
-});
+}, dependencies: [previewProvider]);

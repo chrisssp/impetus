@@ -199,7 +199,8 @@ void main() {
     expect(
       renderedConfigs,
       hasLength(2),
-      reason: 'a size change must re-derive the RenderConfig through the '
+      reason:
+          'a size change must re-derive the RenderConfig through the '
           'debounced pipeline, not the pinned 540x960 default (D16)',
     );
     expect(renderedConfigs.first.size, const Size(540, 960));

@@ -8,9 +8,13 @@
 //   3. The preview is seeded deterministically: the default state's
 //      RenderConfig is pre-rendered through the REAL engine inside
 //      tester.runAsync (the engine's futures never complete under the
-//      widget-test fake async zone), then both previewConfigProvider and
-//      previewRenderProvider are overridden with that pre-rendered result, so
-//      the baseline shows real preview bytes (D14).
+//      widget-test fake async zone), then previewRenderProvider is overridden
+//      with that pre-rendered result, so the baseline shows real preview
+//      bytes (D14). The previewConfigProvider override is deliberately NOT
+//      pinned here: slice 6 (D16) makes the immersive shell render the
+//      preview at the device size through its nested ProviderScope, which
+//      re-creates the provider with the scoped size — the renderer override
+//      is what keeps the pixels deterministic (it ignores the config).
 //   4. The Image.memory decode completes on the real event loop via
 //      tester.runAsync + precacheImage before the frame is captured.
 //   5. A committed baseline at goldens/app_shell.png; the test fails unless
@@ -30,8 +34,11 @@ import 'package:impetus/main.dart';
 
 import '../helpers/load_roboto.dart';
 
-/// The pinned 540x960 canvas the app-shell golden renders at (design D25).
-const Size _canvas = Size(540, 960);
+/// The device-size canvas the shell renders the preview at (design D16): the
+/// golden's default test surface is 800x600 logical, and the shell's nested
+/// scope feeds that size into the preview pipeline, so the pre-render must
+/// match it aspect-for-aspect (BoxFit.cover, D23).
+const Size _canvas = Size(800, 600);
 
 void main() {
   setUpAll(loadRoboto);
@@ -58,7 +65,6 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          previewConfigProvider.overrideWithValue(defaultConfig),
           previewRenderProvider.overrideWithValue((_) async => preview!),
         ],
         child: const MainApp(),

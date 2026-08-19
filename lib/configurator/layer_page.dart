@@ -1,13 +1,13 @@
-// LayerPage — the interaction surface for one stack layer (design D3/D9,
-// RE-CF-4/5, tasks 6.1/6.5).
+// LayerControls — the interaction surface for one stack layer (design D3/D9,
+// RE-CF-4/5, tasks 6.1/6.5 + 4.1-4.7).
 //
-// Each swipe-shell page shows its layer's mode toggle (RE-CF-4), its catalog of
-// addable placeholders and its pool of removable, selectable items (RE-CF-5).
+// Each layer's controls: its mode toggle (RE-CF-4), its catalog of addable
+// placeholders and its pool of removable, selectable items (RE-CF-5).
 //
-// The toggle + catalog + pool body is extracted into [LayerControls] so the
-// immersive bottom sheet reuses the exact same controls and stable keys
-// (D20, tasks 4.1-4.7); [LayerPage] keeps only the shell-specific chrome
-// (the layer title) until the shell is removed in a later slice. Blocked-layer
+// The toggle + catalog + pool body lives in [LayerControls] so the immersive
+// bottom sheet reuses the exact same controls and stable keys (D20, tasks
+// 4.1-4.7). The old swipe-shell [LayerPage] wrapper was removed in slice 6:
+// the sheet is now the single control surface (RE-CF-12). Blocked-layer
 // presentation no longer lives here: the old _BlockedBanner + Opacity
 // attenuation was replaced by the immersive [BlockedPill] overlay on the
 // preview (D22, RE-CF-7, tasks 5.1-5.4).
@@ -18,38 +18,8 @@ import 'package:impetus/configurator/catalog.dart';
 import 'package:impetus/configurator/configurator_notifier.dart';
 import 'package:impetus/configurator/layer_model.dart';
 
-/// The swipe-shell page for [layerIndex] (a fixed index into [LayerType.values],
-/// RE-CF-2).
-class LayerPage extends ConsumerWidget {
-  const LayerPage({super.key, required this.layerIndex});
-
-  final int layerIndex;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final layer = LayerType.values[layerIndex];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(layer.name, style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 8),
-              LayerControls(layerIndex: layerIndex),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// The mode toggle, catalog chips and pool list for one layer (RE-CF-4/5,
-/// design D3/D20). Shared by the swipe-shell [LayerPage] and the immersive
-/// bottom sheet, so both surfaces expose the same stable control keys.
+/// design D3/D20). Used by the immersive bottom sheet with stable control keys.
 class LayerControls extends ConsumerWidget {
   const LayerControls({super.key, required this.layerIndex});
 

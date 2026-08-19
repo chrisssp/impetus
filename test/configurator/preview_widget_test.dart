@@ -11,7 +11,6 @@
 
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' show Size;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -143,14 +142,20 @@ void main() {
     expect(image.fit, BoxFit.cover);
     expect(image.gaplessPlayback, isTrue);
 
-    // The fill chain: RepaintBoundary isolates the raster, LayoutBuilder fills
-    // the available space (D23).
+    // The fill chain: RepaintBoundary isolates the raster (the panel owns
+    // exactly one, wrapping the image), LayoutBuilder fills the available
+    // space (D23).
+    final panelBoundary = find.descendant(
+      of: find.byType(PreviewPanel),
+      matching: find.byType(RepaintBoundary),
+    );
+    expect(panelBoundary, findsOneWidget);
     expect(
       find.ancestor(
         of: find.byType(Image),
         matching: find.byType(RepaintBoundary),
       ),
-      findsOneWidget,
+      findsAtLeastNWidgets(1),
     );
     expect(find.byType(LayoutBuilder), findsOneWidget);
   });
